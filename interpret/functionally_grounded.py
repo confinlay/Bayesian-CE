@@ -9,26 +9,47 @@ import numpy as np
 
 
 def get_BNN_uncertainties(BNN, explanations, regression, batch_size=1024, norm_MNIST=False, flatten=False, return_probs=False, prob_BNN=True):
+    """
+    Calculate uncertainty metrics from a Bayesian Neural Network for given explanations.
+    
+    Args:
+        BNN: Bayesian Neural Network model
+        explanations: Input data to get uncertainties for
+        regression: Whether this is a regression task
+        batch_size: Size of batches to process
+        norm_MNIST: Whether to normalize MNIST data
+        flatten: Whether to flatten input
+        return_probs: Whether to return probability predictions
+        prob_BNN: Whether BNN outputs probabilities
+        
+    Returns:
+        Tuple of (total uncertainty, aleatoric uncertainty, epistemic uncertainty)
+        and optionally probability predictions
+    """
     total_stack = []
     aleatoric_stack = []
     epistemic_stack = []
     probs_stack = []
+    
+    # Process data in batches
     aux_loader = generate_ind_batch(explanations.shape[0], batch_size=batch_size, random=False, roundup=True)
     for idxs in aux_loader:
         if regression:
-
+            # Handle regression case
             if prob_BNN:
+                # Get predictions and decompose uncertainties for probabilistic BNN
                 mu_vec, std_vec = BNN.sample_predict(explanations[idxs], Nsamples=0, grad=False)
                 total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty = decompose_std_gauss(mu_vec, std_vec)
                 probs_stack.append(mu_vec)
             else:
+                # Handle deterministic regression BNN
                 mu, std = BNN.predict(explanations[idxs], grad=False)
                 probs_stack.append(mu)
                 total_uncertainty = std
                 aleatoric_uncertainty = std
                 epistemic_uncertainty = std * 0
         else:
-
+            # Handle classification case
             if norm_MNIST:
                 to_BNN = MNIST_mean_std_norm(explanations[idxs])
             else:
@@ -38,24 +59,29 @@ def get_BNN_uncertainties(BNN, explanations, regression, batch_size=1024, norm_M
                 to_BNN = to_BNN.view(to_BNN.shape[0], -1)
 
             if prob_BNN:
+                # Get predictions and decompose uncertainties for probabilistic classification BNN
                 probs = BNN.sample_predict(to_BNN, Nsamples=0, grad=False)
                 total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty = decompose_entropy_cat(probs)
                 probs_stack.append(probs)
             else:
+                # Handle deterministic classification BNN
                 probs = BNN.predict(to_BNN, grad=False)
                 total_uncertainty = -(probs * torch.log(probs + 1e-10)).sum(dim=1, keepdim=False)
                 aleatoric_uncertainty = total_uncertainty
                 epistemic_uncertainty = total_uncertainty * 0
                 probs_stack.append(probs)
 
+        # Collect uncertainties for this batch
         total_stack.append(total_uncertainty)
         aleatoric_stack.append(aleatoric_uncertainty)
         epistemic_stack.append(epistemic_uncertainty)
 
+    # Combine results from all batches
     total_stack = torch.cat(total_stack, dim=0)
     aleatoric_stack = torch.cat(aleatoric_stack, dim=0)
     epistemic_stack = torch.cat(epistemic_stack, dim=0)
     probs_stack = torch.cat(probs_stack, dim=1)
+    
     if return_probs:
         return total_stack, aleatoric_stack, epistemic_stack, probs_stack
     else:
@@ -63,7 +89,20 @@ def get_BNN_uncertainties(BNN, explanations, regression, batch_size=1024, norm_M
 
 
 def evaluate_aleatoric_explanation_cat(VAEAC, explanations, test_dims, N_target_samples=500, batch_size=1024):
-    """This assumes that test dims are placed at end of input vector"""
+    """
+    Evaluate aleatoric uncertainty for categorical explanations using VAEAC model.
+    
+    Args:
+        VAEAC: Variational autoencoder with arbitrary conditioning
+        explanations: Input explanations to evaluate
+        test_dims: Dimensions to test
+        N_target_samples: Number of target samples
+        batch_size: Batch size for processing
+        
+    Returns:
+        Aleatoric entropy for the explanations
+    """
+    # Reshape explanations and add zeros for test dimensions
     explanations = explanations.view(explanations.shape[0], -1)
     explanations_expand = torch.cat([explanations, \
                                      explanations.new_zeros((explanations.shape[0], len(test_dims)))], dim=1)
@@ -81,7 +120,10 @@ def evaluate_aleatoric_explanation_cat(VAEAC, explanations, test_dims, N_target_
 
 
 def evaluate_aleatoric_explanation_MNIST(VAEAC, explanations, test_dims, N_target_samples=500, batch_size=1024):
-    """This assumes that test dims are placed at end of input vector"""
+    """
+    Evaluate aleatoric uncertainty for MNIST explanations using VAEAC model.
+    Similar to evaluate_aleatoric_explanation_cat but uses Bernoulli sampling.
+    """
     explanations = explanations.view(explanations.shape[0], -1)
     explanations_expand = torch.cat([explanations, \
                                      explanations.new_zeros((explanations.shape[0], len(test_dims)))], dim=1)
@@ -98,9 +140,11 @@ def evaluate_aleatoric_explanation_MNIST(VAEAC, explanations, test_dims, N_targe
     return y_cond_explan_aleatoric_entropy
 
 
-
 def evaluate_aleatoric_explanation_gauss(VAEAC, explanations, test_dims, pred_sig, N_target_samples=500, batch_size=1024):
-    """This assumes that test dims are placed at end of input vector"""
+    """
+    Evaluate aleatoric uncertainty for Gaussian explanations using VAEAC model.
+    Similar to other evaluate_aleatoric functions but handles Gaussian distributions.
+    """
     explanations = explanations.view(explanations.shape[0], -1)
     explanations_expand = torch.cat([explanations, \
                                      explanations.new_zeros((explanations.shape[0], len(test_dims)))], dim=1)
@@ -123,6 +167,19 @@ def evaluate_aleatoric_explanation_gauss(VAEAC, explanations, test_dims, pred_si
 
 def evaluate_BNN_epistemic_class_error_loglike_cat(BNN, epistemic_explanations,
                                                    explanation_targets, batch_size=1024, flatten=False):
+    """
+    Evaluate epistemic uncertainty for categorical BNN by computing classification error and log likelihood.
+    
+    Args:
+        BNN: Bayesian Neural Network model
+        epistemic_explanations: Input explanations
+        explanation_targets: Target labels
+        batch_size: Batch size for processing
+        flatten: Whether to flatten inputs
+        
+    Returns:
+        Tuple of (test error rate, log likelihood vector)
+    """
     if flatten:
         epistemic_explanations = epistemic_explanations.view(epistemic_explanations.shape[0], -1)
 
@@ -131,12 +188,15 @@ def evaluate_BNN_epistemic_class_error_loglike_cat(BNN, epistemic_explanations,
     test_err = 0
     nb_samples = 0
     for idxs in aux_loader:
+        # Get predictions from BNN
         probs_samples = BNN.sample_predict(x=epistemic_explanations[idxs], Nsamples=0, grad=False).data
         probs = probs_samples.mean(dim=0)
 
+        # Calculate negative log likelihood
         log_probs = torch.log(probs)
         loss = F.nll_loss(log_probs, explanation_targets[idxs], reduction='none').data
 
+        # Calculate classification error
         pred = probs.data.max(dim=1, keepdim=False)[1]  # get the index of the max log-probability
         err = pred.ne(explanation_targets[idxs].data).sum()
 
@@ -152,7 +212,19 @@ def evaluate_BNN_epistemic_class_error_loglike_cat(BNN, epistemic_explanations,
 
 def evaluate_BNN_epistemic_err_gauss(BNN, epistemic_explanations, y_cond_explanations_mu_epistemic,
                                       batch_size=1000, flatten=False):
-    # Nte that this function does not unnormalise
+    """
+    Evaluate epistemic uncertainty for Gaussian BNN by computing prediction error.
+    
+    Args:
+        BNN: Bayesian Neural Network model
+        epistemic_explanations: Input explanations
+        y_cond_explanations_mu_epistemic: Target mean values
+        batch_size: Batch size for processing
+        flatten: Whether to flatten inputs
+        
+    Returns:
+        Tuple of (root mean square error, differences vector)
+    """
     if flatten:
         epistemic_explanations = epistemic_explanations.view(epistemic_explanations.shape[0], -1)
 
@@ -171,6 +243,11 @@ def evaluate_BNN_epistemic_err_gauss(BNN, epistemic_explanations, y_cond_explana
 
 def evaluate_epistemic_explanation_gauss(BNN, VAEAC, epistemic_explanation, test_dims, pred_sig, outer_batch_size=2000,
                                          inner_batch_size=1024, VAEAC_samples=500):
+    """
+    Evaluate epistemic uncertainty for Gaussian explanations using both BNN and VAEAC.
+    
+    Combines VAEAC sampling with BNN error evaluation.
+    """
     epistemic_explanation = epistemic_explanation.view(epistemic_explanation.shape[0], -1)
 
     epistemic_explanation_expand = torch.cat(
@@ -192,6 +269,11 @@ def evaluate_epistemic_explanation_gauss(BNN, VAEAC, epistemic_explanation, test
 
 def evaluate_epistemic_explanation_cat(BNN, VAEAC, epistemic_explanation, test_dims, outer_batch_size=2000,
                                    inner_batch_size=1024, VAEAC_samples=500):
+    """
+    Evaluate epistemic uncertainty for categorical explanations using both BNN and VAEAC.
+    
+    Combines VAEAC sampling with BNN error and likelihood evaluation.
+    """
     epistemic_explanation = epistemic_explanation.view(epistemic_explanation.shape[0], -1)
 
     epistemic_explanation_expand = torch.cat(
@@ -217,6 +299,11 @@ def evaluate_epistemic_explanation_cat(BNN, VAEAC, epistemic_explanation, test_d
 
 def evaluate_epistemic_explanation_MNIST(BNN, VAEAC, epistemic_explanation, test_dims, outer_batch_size=2000,
                                    inner_batch_size=1024, VAEAC_samples=500):
+    """
+    Evaluate epistemic uncertainty for MNIST explanations using both BNN and VAEAC.
+    
+    Similar to evaluate_epistemic_explanation_cat but with MNIST-specific preprocessing.
+    """
     epistemic_explanation = epistemic_explanation.view(epistemic_explanation.shape[0], -1)
 
     epistemic_explanation_expand = torch.cat(
@@ -242,8 +329,20 @@ def evaluate_epistemic_explanation_MNIST(BNN, VAEAC, epistemic_explanation, test
 
 
 def get_VAEAC_px(under_VAEAC_net, x_art_test, y_dims, Nsamples=5000, bern=False, batch_size=None):
-    """Note that this function automatically masks y and only takes x as input
-        Works for factorised Bernouilli inputs and Gaussian inputs"""
+    """
+    Calculate log probability of x under VAEAC model.
+    
+    Args:
+        under_VAEAC_net: VAEAC network
+        x_art_test: Test inputs
+        y_dims: Dimensions for y variables
+        Nsamples: Number of samples for estimation
+        bern: Whether to use Bernoulli distribution
+        batch_size: Batch size for processing
+        
+    Returns:
+        Log probability vector
+    """
     max_dims = x_art_test.shape[1] + len(y_dims)
     x_dims = range(max_dims)
     for e in y_dims:
@@ -269,10 +368,11 @@ def get_VAEAC_px(under_VAEAC_net, x_art_test, y_dims, Nsamples=5000, bern=False,
 
         p_x_estimates = []
         for i in range(Nsamples):
-
+            # Sample and reconstruct
             u_sample = u_approx_dist.sample().data
             rec_distrib = under_VAEAC_net.u_regenerate(u_sample, grad=False)
 
+            # Calculate probabilities
             log_p = prior.log_prob(u_sample).sum(dim=1).data
             log_q = u_approx_dist.log_prob(u_sample).sum(dim=1).data
             if bern:
@@ -292,7 +392,11 @@ def get_VAEAC_px(under_VAEAC_net, x_art_test, y_dims, Nsamples=5000, bern=False,
 
 
 def get_VAEAC_px_gauss_cat(under_VAEAC_net, x_art_test, input_dim_vec, y_dims, override_y_dims=None, Nsamples=5000):
-    """Note that this function automatically masks y in generations and only takes x as input"""
+    """
+    Calculate log probability of x under VAEAC model for mixed Gaussian-categorical data.
+    
+    Similar to get_VAEAC_px but handles mixed data types.
+    """
     rec_loglike_func = rms_cat_loglike(input_dim_vec, reduction='none')
     max_dims = x_art_test.shape[1] + len(y_dims)
     x_dims = range(max_dims)
@@ -315,10 +419,11 @@ def get_VAEAC_px_gauss_cat(under_VAEAC_net, x_art_test, input_dim_vec, y_dims, o
 
     p_x_estimates = []
     for i in range(Nsamples):
-
+        # Sample and reconstruct
         u_sample = u_approx_dist.sample()
         rec_distrib = under_VAEAC_net.u_regenerate(u_sample, grad=False)
 
+        # Calculate probabilities
         log_p = prior.log_prob(u_sample).sum(dim=1).data
         log_q = u_approx_dist.log_prob(u_sample).sum(dim=1).data
         rec_loglike = rec_loglike_func(rec_distrib, iw_xy_target).view(iw_xy.shape[0], -1)
