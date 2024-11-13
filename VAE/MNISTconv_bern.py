@@ -59,11 +59,19 @@ class convMNIST_VAE_bern(nn.Module):
 
 
 class MNISTconv_VAE_bern_net(BaseNet):
-    def __init__(self, latent_dim, encoder, decoder, lr=1e-3, cuda=True):
+    def __init__(self, latent_dim, encoder, decoder, lr=1e-3, device=None):
         super(MNISTconv_VAE_bern_net, self).__init__()
         cprint('y', 'VAE_bern_net')
 
-        self.cuda = cuda
+        # Determine best available device if none provided
+        if device is None:
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+            elif torch.backends.mps.is_available():
+                device = torch.device('mps')
+            else:
+                device = torch.device('cpu')
+        self.device = device
 
         # self.input_dim = input_dim
         # self.width = width
@@ -76,18 +84,18 @@ class MNISTconv_VAE_bern_net(BaseNet):
         self.epoch = 0
         self.schedule = None
 
-        if self.cuda:
-            self.prior = self.prior = Normal(loc=torch.zeros(latent_dim).cuda(), scale=torch.ones(latent_dim).cuda())
-        else:
-            self.prior = Normal(loc=torch.zeros(latent_dim), scale=torch.ones(latent_dim))
+        self.prior = Normal(
+            loc=torch.zeros(latent_dim, device=self.device),
+            scale=torch.ones(latent_dim, device=self.device)
+        )
         self.vlb_scale = 1 / 784  # scale for dimensions of input so we can use same LR always
 
     def create_net(self, encoder, decoder):
         torch.manual_seed(42)
         torch.cuda.manual_seed(42)
         self.model = convMNIST_VAE_bern(self.latent_dim, encoder, decoder)
-        if self.cuda:
-            self.model = self.model.cuda()
+        self.model = self.model.to(self.device)
+        if self.device == torch.device('cuda'):
             cudnn.benchmark = True
         print('    Total params: %.2fM' % (self.get_nb_parameters() / 1000000.0))
 
@@ -97,7 +105,7 @@ class MNISTconv_VAE_bern_net(BaseNet):
     def fit(self, x):
         self.set_mode_train(train=True)
 
-        x, = to_variable(var=(x, ), cuda=self.cuda)
+        x = x.to(self.device)
         self.optimizer.zero_grad()
 
         approx_post = self.model.encode(x)
@@ -115,7 +123,7 @@ class MNISTconv_VAE_bern_net(BaseNet):
     def eval(self, x, sample=False):
         self.set_mode_train(train=False)
 
-        x, = to_variable(var=(x, ), cuda=self.cuda)
+        x = x.to(self.device)
         approx_post = self.model.encode(x)
         if sample:
             z_sample = approx_post.sample()
@@ -129,7 +137,7 @@ class MNISTconv_VAE_bern_net(BaseNet):
 
     def eval_iw(self, x , k=50):
         self.set_mode_train(train=False)
-        x,  = to_variable(var=(x, ), cuda=self.cuda)
+        x = x.to(self.device)
 
         approx_post = self.model.recognition_encode(x)
 
@@ -142,7 +150,7 @@ class MNISTconv_VAE_bern_net(BaseNet):
             if not x.requires_grad:
                 x.requires_grad = True
         else:
-            x, = to_variable(var=(x,), volatile=True, cuda=self.cuda)
+            x = x.to(self.device)
         approx_post = self.model.encode(x)
         return approx_post
 
@@ -152,7 +160,7 @@ class MNISTconv_VAE_bern_net(BaseNet):
             if not z.requires_grad:
                 z.requires_grad = True
         else:
-            z, = to_variable(var=(z,), volatile=True, cuda=self.cuda)
+            z = z.to(self.device)
         out = self.model.decode(z)
         if grad:
             return torch.sigmoid(out)

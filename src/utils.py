@@ -5,10 +5,7 @@ from torch.autograd import Variable
 import sys
 import os
 import torch.nn as nn
-try:
-    import cPickle as pickle
-except:
-    import pickle
+import matplotlib.pyplot as plt
 
 def mkdir(paths):
     if not isinstance(paths, (list, tuple)):
@@ -143,13 +140,44 @@ class BaseNet(object):
             'optimizer': self.optimizer}, filename)
 
     def load(self, filename):
-        cprint('c', 'Reading %s\n' % filename)
-        state_dict = torch.load(filename)
+        cprint('c', f'Reading {filename}\n')
+        
+        # Determine best available device
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+        print(f"Loading model to device: {device}")
+        
+        state_dict = torch.load(filename, map_location=device)
         self.epoch = state_dict['epoch']
         self.lr = state_dict['lr']
         self.model = state_dict['model']
         self.optimizer = state_dict['optimizer']
-        print('  restoring epoch: %d, lr: %f' % (self.epoch, self.lr))
+        print(f'  restoring epoch: {self.epoch}, lr: {self.lr}')
+        return self.epoch
+    
+    def new_save(self, filename):
+        cprint('c', f'Writing {filename}\n')
+        torch.save({
+            'epoch': self.epoch,
+            'lr': self.lr,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict()
+        }, filename)
+
+    def new_load(self, filename):
+        cprint('c', f'Reading {filename}\n')
+        state_dict = torch.load(filename)
+        
+        self.epoch = state_dict['epoch']
+        self.lr = state_dict['lr']
+        self.model.load_state_dict(state_dict['model_state_dict'])
+        self.optimizer.load_state_dict(state_dict['optimizer_state_dict'])
+        
+        print(f'  Restored epoch: {self.epoch}, lr: {self.lr}')
         return self.epoch
 
 
@@ -269,3 +297,70 @@ class l1_MAD(nn.Module):
         if self.dim is None:
             self.dim = list(range(1, len(d.shape)))
         return (torch.abs(d) / self.MAD).sum(dim=self.dim)
+
+
+def evaluate_vae(vae, test_loader, device='mps', num_samples=10):
+    """
+    Evaluate VAE on multiple metrics:
+    1. Reconstruction quality (visual + MSE)
+    2. Random samples from prior
+    3. VLB on test set
+    """
+    vae.model = vae.model.to(device)
+    vae.model.eval()
+    
+    # 1. Reconstruction Quality
+    x_test, _ = next(iter(test_loader))
+    x_test = x_test[:num_samples].to(device)
+    
+    with torch.no_grad():
+        # Get reconstructions
+        approx_post = vae.model.encode(x_test)
+        z_sample = approx_post.rsample()
+        x_rec = torch.sigmoid(vae.model.decode(z_sample))
+        
+        # Compute MSE
+        mse = torch.mean((x_test - x_rec) ** 2).item()
+        
+        # Plot reconstructions
+        plt.figure(figsize=(15, 3))
+        for i in range(num_samples):
+            # Original
+            plt.subplot(2, num_samples, i + 1)
+            plt.imshow(x_test[i].cpu().squeeze(), cmap='gray')
+            plt.axis('off')
+            # Reconstruction
+            plt.subplot(2, num_samples, i + num_samples + 1)
+            plt.imshow(x_rec[i].cpu().squeeze(), cmap='gray')
+            plt.axis('off')
+        plt.suptitle(f'Top: Original, Bottom: Reconstruction (MSE: {mse:.4f})')
+        plt.show()
+        
+        # 2. Random samples
+        z_rand = torch.randn(num_samples, vae.latent_dim, device=device)
+        x_gen = torch.sigmoid(vae.model.decode(z_rand))
+        
+        plt.figure(figsize=(15, 3))
+        for i in range(num_samples):
+            plt.subplot(1, num_samples, i + 1)
+            plt.imshow(x_gen[i].cpu().squeeze(), cmap='gray')
+            plt.axis('off')
+        plt.suptitle('Random samples from prior')
+        plt.show()
+        
+        # 3. Compute average VLB on test set
+        total_vlb = 0
+        n_batches = 0
+        for x, _ in test_loader:
+            x = x.to(device)
+            approx_post = vae.model.encode(x)
+            z_sample = approx_post.rsample()
+            rec_params = vae.model.decode(z_sample)
+            vlb = vae.model.vlb(vae.prior, approx_post, x, rec_params)
+            total_vlb += vlb.mean().item()
+            n_batches += 1
+            
+        avg_vlb = total_vlb / n_batches
+        print(f'Test set VLB: {avg_vlb:.4f}')
+        
+        return {'mse': mse, 'vlb': avg_vlb}
