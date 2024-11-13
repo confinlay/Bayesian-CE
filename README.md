@@ -1,3 +1,9 @@
+# Master's Thesis on Bayesian Deep Learning - 2024/2025
+
+This repository contains a work-in-progress implementation of a variant (and hopefully an improvement) of the "CLUE" method for interpreting uncertainty in Bayesian neural networks. I am pursuing this project in fulfilment of my Master's degree in Computer Engineering at Trinity College Dublin, from which I will graduate in Autumn 2025. This project will be completed by April 2025, at which point I will publish my thesis write-up here.
+
+Currently this README just contains my original proposal/idea for this project. I will update it with implementation details as I progress.
+
 ## Getting a CLUE
 
 “[Getting a CLUE - a Method For Explaining Uncertainty Estimates](https://arxiv.org/abs/2006.06848)” is a paper published in 2021 which was the first of its kind in seeking to properly explain the uncertainty estimates provided by a Bayesian Neural Network. It introduces **CLUEs** (Counterfactual Latent Uncertainty Estimates), which are alternative data points (counterfactuals) that are very similar to some original data point but yield a much more certain prediction from the network. In other words, when the network makes a highly uncertain prediction, a new, similar data point can be generated that results in a more certain prediction. The difference between the original and the new data point can be interpreted as the **source of the uncertainty**. In the words of the paper:
@@ -6,7 +12,9 @@
 
 An example of the CLUE method identifying the source of uncertainty in a point from the MNIST dataset can be seen below. The difference between the data points matches our intuitive understanding of what would make the original point uncertain.
 
-![image](https://github.com/user-attachments/assets/c1092d7f-7faf-47a9-895d-2fb151595338)
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/c1092d7f-7faf-47a9-895d-2fb151595338" width="800" style="margin-top: 50px; margin-bottom: 50px;"/>
+</div>
 
 An important part of the CLUE method is the exploration of the latent space. Searching for inputs that are "close" to the original input directly in the input space is ineffective, as this does not involve searching amongst meaningful features in the data distribution but instead makes random changes to the input. In the case of MNIST this is essentially like randomly flipping pixels - the paper shows that this approach leads to noisy, illogical inputs that behave like adversarial attacks on the BNN, trying to trick it into providing a higher certainty.
 
@@ -22,9 +30,10 @@ I propose combining these two areas of research and developing an alternative CL
 
 If the latent space can be *shared* between the Hybrid-BNN and a Deep Generative Model that generates counterfactuals, then I suggest that there could be efficiency gains - as shown in the figure below and subsequently described.
 
-![image](https://github.com/user-attachments/assets/423b9825-712d-4d8c-ae95-d5cd05597db1)
-
-(Note: the purple node in the diagram is not meant to represent a hidden unit in the model but instead represents the latent space)
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/423b9825-712d-4d8c-ae95-d5cd05597db1" width="600", style="margin-top: 20px; margin-bottom: 20px;"/>
+</div>
+<small><em>(Note: the purple node in the diagram is not meant to represent a hidden unit in the model but instead represents the latent space)</em></small>
 
 ### Training
 
