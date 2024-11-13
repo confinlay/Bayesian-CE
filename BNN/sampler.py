@@ -79,7 +79,7 @@ class H_SA_SGHMC(Optimizer):
 
                 d_p = p.grad.data
                 if weight_decay != 0:
-                    d_p.add_(weight_decay, p.data)
+                    d_p.add_(p.data, alpha=weight_decay)
 
                 # update parameters during burn-in
                 if burn_in:  # We update g first as it makes most sense

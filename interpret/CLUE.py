@@ -217,22 +217,22 @@ class CLUE(BaseNet):
                 prior_loglike = self.VAE.prior.log_prob(self.z).sum(dim=1)
             except:  # This mode is just for CondCLUE but the objective method is inherited
                 prior_loglike = self.VAEAC.get_prior(self.original_x, self.cond_mask, flatten=False).log_prob(self.z).sum(dim=1)
-            objective += self.prior_weight * prior_loglike
+            objective = objective + self.prior_weight * prior_loglike
 
         # Add L2 penalty on latent space
         if self.latent_L2_weight != 0 and self.latent_L2_weight is not None:
             latent_dist = F.mse_loss(self.z, self.z_init, reduction='none').view(x.shape[0], -1).sum(dim=1)
-            objective += self.latent_L2_weight * latent_dist
+            objective = objective + self.latent_L2_weight * latent_dist
 
         # Add prediction similarity term if target predictions provided
         if self.desired_preds is not None:
             pred_dist = self.pred_dist(preds).view(preds.shape[0], -1).sum(dim=1)
-            objective += self.prediction_similarity_weight * pred_dist
+            objective = objective + self.prediction_similarity_weight * pred_dist
 
         # Add distance penalty if metric provided
         if self.distance_metric is not None:
             dist = self.distance_metric(x, self.original_x).view(x.shape[0], -1).sum(dim=1)
-            objective += self.distance_weight * dist
+            objective = objective + self.distance_weight * dist
 
             return objective, self.distance_weight*dist
         else:

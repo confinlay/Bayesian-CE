@@ -41,16 +41,28 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
 
     # Set up data loaders with appropriate settings for CPU/GPU
     if cuda:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=True,
-                                                  num_workers=3)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, pin_memory=True,
-                                                num_workers=3)
+        trainloader = torch.utils.data.DataLoader(
+            trainset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+        valloader = torch.utils.data.DataLoader(
+            valset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
 
     else:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=False,
-                                                  num_workers=3)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, pin_memory=False,
-                                                num_workers=3)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
 
     # Initialize training variables
     cprint('c', '\nNetwork:')
@@ -142,13 +154,13 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     # Plot cross entropy loss
     plt.figure(dpi=100)
     fig, ax1 = plt.subplots()
-    ax1.plot(range(0, nb_epochs, nb_its_dev), np.clip(cost_dev[::nb_its_dev], a_min=-5, a_max=5), 'b-')
     ax1.plot(np.clip(cost_train, a_min=-5, a_max=5), 'r--')
+    ax1.plot(range(0, nb_epochs, nb_its_dev), np.clip(cost_dev[::nb_its_dev], a_min=-5, a_max=5), 'b-')
     ax1.set_ylabel('Cross Entropy')
     plt.xlabel('epoch')
-    plt.grid(b=True, which='major', color='k', linestyle='-')
-    plt.grid(b=True, which='minor', color='k', linestyle='--')
-    lgd = plt.legend(['test error', 'train error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
+    lgd = plt.legend(['train error', 'test error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
     ax = plt.gca()
     plt.title('classification costs')
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
@@ -156,6 +168,8 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
         item.set_fontsize(textsize)
         item.set_weight('normal')
     plt.savefig(results_dir + '/cost.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
+    plt.close()
 
     # Plot classification error rate
     plt.figure(dpi=100)
@@ -163,20 +177,20 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     ax2.set_ylabel('% error')
     ax2.semilogy(range(0, nb_epochs, nb_its_dev), err_dev[::nb_its_dev], 'b-')
     ax2.semilogy(err_train, 'r--')
-    ax2.set_ylim(top=1, bottom=1e-3)
+    ax2.set_ylim(bottom=0.01, top=1.0)
+    ax2.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    ax2.yaxis.set_major_locator(matplotlib.ticker.LogLocator(numticks=10))
+    ax2.grid(True, which='both', linestyle='-', alpha=0.2)
     plt.xlabel('epoch')
-    plt.grid(b=True, which='major', color='k', linestyle='-')
-    plt.grid(b=True, which='minor', color='k', linestyle='--')
-    ax2.get_yaxis().set_minor_formatter(matplotlib.ticker.ScalarFormatter())
-    ax2.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     lgd = plt.legend(['test error', 'train error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
     ax = plt.gca()
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                  ax.get_xticklabels() + ax.get_yticklabels()):
         item.set_fontsize(textsize)
         item.set_weight('normal')
-    plt.savefig(results_dir + '/err.png', bbox_extra_artists=(lgd,), box_inches='tight')
+    plt.savefig(results_dir + '/err.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.show()
+    plt.close()
 
     return cost_train, cost_dev, err_train, err_dev
 
@@ -200,16 +214,28 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
 
     # Set up data loaders with appropriate settings for CPU/GPU
     if cuda:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=True,
-                                                  num_workers=3)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, pin_memory=True,
-                                                num_workers=3)
+        trainloader = torch.utils.data.DataLoader(
+            trainset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+        valloader = torch.utils.data.DataLoader(
+            valset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
 
     else:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=False,
-                                                  num_workers=3)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, pin_memory=False,
-                                                num_workers=3)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
 
     # Initialize training variables
     cprint('c', '\nNetwork:')
@@ -309,20 +335,22 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
     # Plot normalized negative log likelihood
     plt.figure(dpi=100)
     fig, ax1 = plt.subplots()
-    ax1.plot(cost_train, 'r--')
-    ax1.plot(range(0, nb_epochs, nb_its_dev), cost_dev[::nb_its_dev], 'b-')
-    ax1.set_ylabel('-loglike')
+    ax1.plot(np.clip(cost_train, a_min=-5, a_max=5), 'r--')
+    ax1.plot(range(0, nb_epochs, nb_its_dev), np.clip(cost_dev[::nb_its_dev], a_min=-5, a_max=5), 'b-')
+    ax1.set_ylabel('Cross Entropy')
     plt.xlabel('epoch')
-    plt.grid(b=True, which='major', color='k', linestyle='-')
-    plt.grid(b=True, which='minor', color='k', linestyle='--')
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
     lgd = plt.legend(['train error', 'test error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
     ax = plt.gca()
-    plt.title('train dev normalised ll')
+    plt.title('regression costs')
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                  ax.get_xticklabels() + ax.get_yticklabels()):
         item.set_fontsize(textsize)
         item.set_weight('normal')
     plt.savefig(results_dir + '/cost.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
+    plt.close()
 
     # Plot unnormalized log likelihood
     plt.figure(dpi=100)
@@ -330,8 +358,8 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
     ax1.plot(range(0, nb_epochs, nb_its_dev), ll_dev[::nb_its_dev], 'b-')
     ax1.set_ylabel('-loglike')
     plt.xlabel('epoch')
-    plt.grid(b=True, which='major', color='k', linestyle='-')
-    plt.grid(b=True, which='minor', color='k', linestyle='--')
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
     ax = plt.gca()
     plt.title('un-normalised')
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
@@ -339,6 +367,8 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
         item.set_fontsize(textsize)
         item.set_weight('normal')
     plt.savefig(results_dir + '/ll.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
+    plt.close()
 
     # Plot RMS error
     plt.figure(dpi=100)
@@ -346,8 +376,8 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
     ax1.plot(range(0, nb_epochs, nb_its_dev), rms_dev[::nb_its_dev], 'b-')
     ax1.set_ylabel('rms')
     plt.xlabel('epoch')
-    plt.grid(b=True, which='major', color='k', linestyle='-')
-    plt.grid(b=True, which='minor', color='k', linestyle='--')
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
     ax = plt.gca()
     plt.title('un-normalised')
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
@@ -355,6 +385,8 @@ def train_BNN_regression(net, name, batch_size, nb_epochs, trainset, valset, cud
         item.set_fontsize(textsize)
         item.set_weight('normal')
     plt.savefig(results_dir + '/rms.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
+    plt.close()
     plt.show()
     return cost_train, cost_dev, rms_dev, ll_dev
 

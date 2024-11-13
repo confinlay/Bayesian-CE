@@ -176,8 +176,8 @@ def torch_onehot(y, Nclass):
 
 
 def save_object(obj, filename):
-    with open(filename, 'wb') as output:  # Overwrites any existing file.
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+    # Use torch.save to save the object in .pt format
+    torch.save(obj, filename)
 
 
 class StrToBytes:
@@ -188,18 +188,23 @@ class StrToBytes:
     def readline(self, size=-1):
         return self.fileobj.readline(size).encode()
 
+def load_object(filename, device=None):
+    try:
+        # Determine the device if not specified
+        if device is None:
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+            elif torch.backends.mps.is_available():
+                device = torch.device('mps')
+            else:
+                device = torch.device('cpu')
 
-def load_object(filename):
-    with open(filename, 'rb') as input:
-        try:
-            return pickle.load(input)
-        except Exception as e:
-            try:
-                print(e)
-                return pickle.load(input, encoding="latin1")
-            except Exception as a:
-                print(a)
-                return pickle.load(input, encoding='bytes')
+        # Load the model directly to the specified device
+        model = torch.load(filename, map_location=device)
+        return model
+    except Exception as e:
+        print(f"Error loading file {filename}: {e}")
+        raise
             
 
 def array_to_bin_np(array, ncats):

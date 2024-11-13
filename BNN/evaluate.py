@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from src.utils import to_variable
+import matplotlib.pyplot as plt
+from sklearn.calibration import calibration_curve
 
 
 def evaluate_BNN_net_cat(net, valloader, samples=0, flat_ims=False):
@@ -12,7 +14,7 @@ def evaluate_BNN_net_cat(net, valloader, samples=0, flat_ims=False):
     nb_samples = 0
 
     for j, (x, y) in enumerate(valloader):
-        y, = to_variable(var=(y.long(),), cuda=net.cuda)
+        y, = to_variable(var=(y.long(),), cuda=net.device.type=='cuda')
         if flat_ims:
             x = x.view(x.shape[0], -1)
         probs_samples = net.sample_predict(x, Nsamples=samples, grad=False).data
@@ -39,7 +41,7 @@ def evaluate_BNN_net_gauss(net, valloader, y_means, y_stds, samples=0, gmm_sig=F
     y_vec = []
 
     for x,y in valloader:
-        y, = to_variable(var=(y,), cuda=net.cuda)
+        y, = to_variable(var=(y,), cuda=net.device.type=='cuda')
         if flat_ims:
             x = x.view(x.shape[0], -1)
         mu, sig = net.sample_predict(x, Nsamples=samples, grad=False)
@@ -64,6 +66,42 @@ def evaluate_BNN_net_gauss(net, valloader, y_means, y_stds, samples=0, gmm_sig=F
     print('rms', rms, 'll', ll)
 
     return ll, rms
+
+
+def evaluate_uncertainty_accuracy(net, valloader, samples=10, flat_ims=False):
+    all_probs = []
+    all_targets = []
+
+    for x, y in valloader:
+        y, = to_variable(var=(y.long(),), cuda=net.device.type=='cuda')
+        if flat_ims:
+            x = x.view(x.shape[0], -1)
+        
+        # Sample predictions
+        probs_samples = net.sample_predict(x, Nsamples=samples, grad=False).data
+        probs = probs_samples.mean(dim=0)
+        
+        all_probs.append(probs.cpu().numpy())
+        all_targets.append(y.cpu().numpy())
+
+    all_probs = np.concatenate(all_probs, axis=0)
+    all_targets = np.concatenate(all_targets, axis=0)
+
+    # Calculate Brier score
+    brier_score = np.mean(np.sum((all_probs - np.eye(all_probs.shape[1])[all_targets])**2, axis=1))
+    print(f'Brier Score: {brier_score}')
+
+    # Calibration plot
+    prob_true, prob_pred = calibration_curve(all_targets, all_probs[:, 1], n_bins=10)
+    plt.plot(prob_pred, prob_true, marker='o', label='Calibration curve')
+    plt.plot([0, 1], [0, 1], linestyle='--', label='Perfectly calibrated')
+    plt.xlabel('Mean predicted probability')
+    plt.ylabel('Fraction of positives')
+    plt.title('Calibration plot')
+    plt.legend()
+    plt.show()
+
+    return brier_score
 
 
 

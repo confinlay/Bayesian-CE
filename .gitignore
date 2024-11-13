@@ -189,6 +189,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+thesis-venv/
 
 # Spyder project settings
 .spyderproject
@@ -256,5 +257,6 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
-# notebooks folder
+# notebooks folder and saves
 notebooks/
+my-saves/
