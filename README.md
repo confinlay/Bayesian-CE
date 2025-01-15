@@ -1,96 +1,84 @@
 # Master's Thesis on Bayesian Deep Learning - 2024/2025
 
-This repository contains a work-in-progress implementation of a variant (and hopefully an improvement) of the "CLUE" method for interpreting uncertainty in Bayesian neural networks. I am pursuing this project in fulfilment of my Master's degree in Computer Engineering at Trinity College Dublin, from which I will graduate in Autumn 2025. This project will be completed by April 2025, at which point I will publish my thesis write-up here.
+This repository contains a work-in-progress implementation of my Master's thesis project, which will investigate how Bayesian last-layer neural network architectures can be leveraged to improve existing methods for explaining uncertainty. The primary objective will be to adapt an influential method of explaining uncertainty, CLUE (Counterfactual Latent Uncertainty Explanations)[^1], such that it exploits the architecture of Bayesian last-layer neural networks. The proposed method will align uncertainty explanations with the internal representations of the predictive model while reducing computational overhead.
 
-Currently this README just contains my original proposal/idea for this project. I will update it with implementation details as I progress.
+I am pursuing this project in fulfilment of my Master's degree in Computer Engineering at Trinity College Dublin, from which I will graduate in Autumn 2025. This project will be completed by April 2025, at which point I will publish my thesis write-up here.
 
-## Getting a CLUE
+Currently, this README contains a short description of my project idea/proposal. I will update it with implementation details as I progress.
 
-“[Getting a CLUE - a Method For Explaining Uncertainty Estimates](https://arxiv.org/abs/2006.06848)” is a paper published in 2021 which was the first of its kind in seeking to properly explain the uncertainty estimates provided by a Bayesian Neural Network. It introduces **CLUEs** (Counterfactual Latent Uncertainty Estimates), which are alternative data points (counterfactuals) that are very similar to some original data point but yield a much more certain prediction from the network. In other words, when the network makes a highly uncertain prediction, a new, similar data point can be generated that results in a more certain prediction. The difference between the original and the new data point can be interpreted as the **source of the uncertainty**. In the words of the paper:
+## Background and Motivation
 
-> CLUEs try to answer the question: “What is the smallest change that could be made to an input, while keeping it in distribution, so that our model becomes certain in its decision for said input?”
+### Bayesian Last-Layers
+Approximating Bayesian inference in neural networks is computationally challenging due to the intractability of the posterior distribution and the high dimensionality of parameter spaces, making scalable and efficient methods essential for the wider adoption of Bayesian neural networks. 
 
-An example of the CLUE method identifying the source of uncertainty in a point from the MNIST dataset can be seen below. The difference between the data points matches our intuitive understanding of what would make the original point uncertain.
+Bayesian last-layer architectures represent a promising avenue for balancing computational efficiency and accuracy in uncertainty estimation. These architectures separate representation learning from uncertainty estimation by using deterministic layers to extract features and reserving Bayesian inference for the final layer. This hybrid approach significantly reduces the computational overhead associated with full-network Bayesian inference while preserving high-quality uncertainty estimates.
 
+The paper “On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation”[^2] demonstrated that Bayesian last-layer architectures achieve comparable performance to fully Bayesian networks tasks which involve quantifying uncertainty, such as out-of-distribution detection and selective classification. These findings suggest that uncertainty quantification primarily depends on the final layer of the network, making it unnecessary to apply Bayesian inference across all layers. Since the publication of this paper, there have been several more approaches proposed for this sort of partially Bayesian inference, such as a last-layer variant of the Laplace approximation[^3] and "Variational Bayesian last-layers'[^4].
+
+### Explanations for Uncertainty
+Explaining uncertainty in Bayesian neural networks is essential for making machine learning models more interpretable and trustworthy, especially in safety-critical applications like healthcare and autonomous systems. While uncertainty estimates themselves provide insights into a model’s confidence, methods like CLUE go further by seeking to identify the _sources_ of uncertainty.
+
+CLUE works by generating counterfactual examples—alternative data points that are similar to the original input but lead to significantly more confident predictions. The difference between the original input and its counterfactual provides an interpretation of the source of uncertainty in the model's prediction. CLUE achieves this by leveraging a deep generative model (DGM), such as a Variational Autoencoder (VAE), trained on the same dataset as the Bayesian classifier. The method optimises in the VAE's latent space, ensuring that the generated counterfactuals remain realistic and within the data distribution.
+
+Several approaches have been proposed since this paper was published, some of which build on CLUE while others take an alternative approach focused on feature attribution. For example, $\Delta$-CLUE[^5] generates diverse sets of counterfactual explanations, while a method based on path integrals[^6] attributes uncertainty to individual input features by analysing changes along the CLUE optimisation path. Feature attribution techniques, such as UA-Backprop[^7] and adaptations of existing XAI methods like LIME and LRP[^8], directly assign uncertainty contributions to specific input features without requiring an auxiliary generative model. These approaches are more lightweight than the CLUE-like methods, but their local explanations can have limited expressiveness and lack the same insights into how to _reduce_ uncertainty.
+
+## Proposed Approach: Leveraging Bayesian Last-Layers for CLUE
+The primary objective of this project is to adapt the CLUE method such that it exploits the architecture of Bayesian last-layer neural networks. More specifically, we aim to eliminate the reliance on the latent space of an external DGM by directly utilising the classifier's internal latent space for counterfactual generation. 
+
+### How It Works
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/c1092d7f-7faf-47a9-895d-2fb151595338" width="800" style="margin-top: 50px; margin-bottom: 50px;"/>
+  <img src="https://github.com/user-attachments/assets/4c894c0a-7e39-4c8f-92c5-e8b891f5622d" alt="61bdffca-432b-4d96-a558-c07c14099ed3 sketchpad" width="700" style="border:5px solid #000; border-radius:50px;">
 </div>
 
-An important part of the CLUE method is the exploration of the latent space. Searching for inputs that are "close" to the original input directly in the input space is ineffective, as this does not involve searching amongst meaningful features in the data distribution but instead makes random changes to the input. In the case of MNIST this is essentially like randomly flipping pixels - the paper shows that this approach leads to noisy, illogical inputs that behave like adversarial attacks on the BNN, trying to trick it into providing a higher certainty.
+1. **Classifier Training**:
+   - Train a last-layer Bayesian neural network where the deterministic layers act as a feature extractor, mapping inputs \( x \) to an intermediate latent representation \( z \), and the Bayesian last layer provides uncertainty estimation.
 
-Instead, the CLUE method trains a Variational Autoencoder (VAE) on the same training data as the BNN and then searches the latent space of this VAE. This means that the search is conducted among meaningful features that are still within the distribution of the data. In practice, this is done by performing gradient descent within a local area of the VAE's latent space, close to where the original data point resides. The loss function combines minimizing the distance between the original and new latent representations, while also maximizing the certainty of the new prediction. Each step of this process involves decoding the new latent point to generate a data point, feeding that point through the model to produce a prediction, and adjusting in latent space based on the resulting change in the loss function. Once the optimisation is complete, the final point generated by the VAE is the CLUE.
+2. **Latent Space Optimization**:
+   - When encountering an uncertain prediction, the intermediate latent representation \( z \) is optimized to reduce uncertainty in the Bayesian last layer by:
+     - Minimizing uncertainty in the classifier’s prediction.
+     - Maintaining proximity to the original latent representation to preserve the input’s integrity.
+   - By optimizing directly in the classifier’s latent space, the counterfactual search aligns closely with the model’s 'understanding' of the data.
 
-## Hybrid BNNs / Last-layer Uncertainty Estimation
+3. **Final Counterfactual Generation**:
+   - After latent space optimization, the final latent point is decoded using a DGM trained to reconstruct the training data from the features learned by the Bayesian neural network.
+  
+#### **Key Advantages**
+This method focuses the optimization process on the classifier’s _internal_ latent space:
+- **Efficiency**: Computation costs are reduced: instead of requiring $n$ generations and $n$ predictions
+for $n$ steps of CLUE’s optimisation, only $n$ last-layer predictions are needed, followed by a single generation for the final counterfactual.
+- **Alignment**: By using the classification latent space, the optimisation process in CLUE can focus on the classifier’s interpretation of the data, aligning the counterfactuals more closely with the model’s decision-making process.
+- **Class-consistency**: As discussed in the following section, the latent space of the classifier is expected to be sparser than that of a deep generative model (DGM), with distinct separation between classes. We anticipate that this structure will result in counterfactuals that remain within the class of the original input. This behavior contrasts with the original implementation of CLUE, where crossing class boundaries was possible and could not be reliably avoided. We argue that counterfactuals which cross class boundaries provide an inferior explanation of uncertainty, as they conflate the explanation of uncertainty with an explanation of the classifier's underlying decision boundaries.
 
-The paper “[On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation](https://arxiv.org/abs/2001.08049)” suggests that much of the accuracy in uncertainty estimation within a Bayesian Neural Network comes from the last layer(s) in the architecture. It therefore proposes separating representation learning from uncertainty estimation, whereby a hybrid architecture would allow for the first layers of the network to be deterministic and perform feature extraction, and only the final prediction layer(s) would be stochastic/bayesian. This approach has the potential of producing more efficient architectures.
-
-## My Proposal
-
-I propose combining these two areas of research and developing an alternative CLUE method for this sort of hybrid Bayesian Neural Network. This is primarily motivated by the concept of decoupling representation learning and uncertainty estimation. If the learning of some latent representation within the Hybrid-BNN can be separated from the uncertainty estimation, then perhaps this latent space can be reused for the purpose of generating Counterfactual Latent Uncertainty Explanations.
-
-If the latent space can be *shared* between the Hybrid-BNN and a Deep Generative Model that generates counterfactuals, then I suggest that there could be efficiency gains - as shown in the figure below and subsequently described.
+### Understanding the new latent space
 
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/423b9825-712d-4d8c-ae95-d5cd05597db1" width="600", style="margin-top: 20px; margin-bottom: 20px;"/>
+  <img width="500" alt="Screenshot 2025-01-15 at 18 13 37" src="https://github.com/user-attachments/assets/0ddd3dff-fdb4-4be7-9c74-3d631ea037e6" />
 </div>
-<small><em>(Note: the purple node in the diagram is not meant to represent a hidden unit in the model but instead represents the latent space)</em></small>
 
-### Training
+Although generating an input for each step of CLUE optimisation is no longer needed, it will still be necessary to generate an input for the final latent point. The paper ”Classify and generate: Using classification latent space representations for image generations”[^9] provides helpful guidance in this regard, as it describes how to use features extracted by a classification model for the downstream task of generation. As can be seen in the diagram above (taken from this paper), a classifier's latent space is optimised for separating classes and is typically sparser, with less emphasis on maintaining a continuous or well-structured manifold. 
 
-In this proposed method, the Hybrid-BNN would be trained as usual on the training data to minimize prediction error. Once this is complete, the deterministic layers of the Hybrid-BNN (the representation learning part) would be reused as the encoder for a Variational Autoencoder. With the encoder weights frozen, the VAE (and therefore just the decoder) would be trained on the same dataset to minimize reconstruction error.
+The paper proposes techniques for remaining on the data manifold when generating data points which may prove useful for keeping our counterfactuals in-distribution. The hope is that their techniques won’t be necessary; if uncertainty is higher in sparser areas of the latent space, then the CLUE algorithm will naturally ’find’ its way back to the data manifold.
 
-### CLUE Generation
+## **Secondary Task: Exploring Adjacent Methods**
 
-When we observe an uncertain prediction and want to generate a CLUE, we can directly traverse the latent space of the Hybrid-BNN itself (i.e., the representation at the junction between the deterministic and Bayesian layers of the model). Since this latent space is shared between the Hybrid-BNN and the VAE, there is no need to decode the latent representation at every step and run a full prediction on the input data point generated. Instead, we can simply feed the latent point through the Bayesian layers of the model. The VAE is only needed once this optimisation process is complete, to generate the corresponding input data point from the final latent representation.
+While the proposal described above is likely to provide some interesting results, it is anticipated that there will be some limitations relating to reconstruction accuracy from the classification latent space for some datasets. This is why, subject to progress on the primary objective, this dissertation also aims to explore how insights from adjacent methods can be applied in this context:
 
-This means that the CLUE optimisation process, which originally involved:
+- **Path Integrals [^6]**: By analyzing the changes in input dimensions during CLUE optimization, this approach could help mitigate challenges like poor reconstruction accuracy.
+- **UA-Backprop [^7]**: The uncertainty gradients backpropagated in this method are not decomposable into epistemic and aleatoric uncertainties, as the set of gradients obtained for each sampling of the weights is averaged post-hoc. This may change for last-layer models, where most of the layers are fixed.
 
-1. **Encoding the uncertain data point into the latent space of the VAE.**
-2. **Until convergence:**
-    - Taking a step in VAE latent space.
-    - Decoding the latent representation.
-    - Feeding the generated data point through the entire BNN.
-    - Updating the loss function and repeating.
 
-Can now be simplified to:
+# **Conclusion**
 
-1. **Starting at the intermediate latent representation** of the uncertain data point in the Hybrid-BNN.
-2. **Until convergence:**
-    - Taking a step in the Hybrid-BNN latent space.
-    - Running the point through only the Bayesian layers to produce a prediction.
-    - Updating the loss function and repeating.
-3. **Decoding** the final latent point using the VAE decoder.
+In conclusion, this project will investigate how Bayesian last-layer neural network architectures can be leveraged to improve existing methods for explaining uncertainty. By adapting CLUE to last-layer Bayesian architectures, we aim to improve computational efficiency, align counterfactuals with the classifier’s internal representations, and generate counterfactuals which are consistent with the class of the original input. The integration of adjacent methods, such as path integrals and UA-Backprop, may enhance the robustness of the proposed method.
 
-So instead of performing *n* full network predictions and *n* VAE generations, we perform *n* partial network predictions (using only the Bayesian layers) and a single VAE generation.
 
-## Challenges
+[^1]: Antor'an, Javier et al. “Getting a CLUE: A Method for Explaining Uncertainty Estimates.” ArXiv abs/2006.06848 (2020): n. pag.
+[^2]: Brosse, Nicolas et al. “On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation.” ArXiv abs/2001.08049 (2020): n. pag.
+[^3]: Daxberger, Erik A. et al. “Laplace Redux - Effortless Bayesian Deep Learning.” Neural Information Processing Systems (2021).
+[^4]: Harrison, James et al. “Variational Bayesian Last Layers.” ArXiv abs/2404.11599 (2024): n. pag.
+[^5]: Ley, D. et al. “Diverse, Global and Amortised Counterfactual Explanations for Uncertainty Estimates.” ArXiv abs/2112.02646 (2021): n. pag.
+[^6]: Perez, Iker et al. “Attribution of predictive uncertainties in classification models.” Conference on Uncertainty in Artificial Intelligence (2021).
+[^7]: Wang, Hanjing et al. “Gradient-based Uncertainty Attribution for Explainable Bayesian Deep Learning.” 2023 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) (2023): 12044-12053.
+[^8]: Brown, Katherine E. and Douglas A. Talbert. “Using Explainable AI to Measure Feature Contribution to Uncertainty.” The International FLAIRS Conference Proceedings (2022): n. pag.
+[^9] Gopalakrishnan, Saisubramaniam et al. “Classify and generate: Using classification latent space representations for image generations.” Neurocomputing 471 (2020): 296-334.
 
-One of the main challenges I foresee is the viability of the latent representation - since this representation will be learned to optimise prediction accuracy, it may not retain the necessary information to sufficiently minimise reconstruction error and therefore may not allow the VAE to produce realistic generations. The paper “[Supervising the Decoder of Variational Autoencoders to Improve Scientific Utility](https://arxiv.org/abs/2109.04561)” discusses methods for producing latent space representations which are useful for both prediction and generation, and may provide some guidance on addressing this challenge.
-
-## Further Work on CLUE
-
-From my research, it seems that there has been limited further work done on the CLUE methodology. Although the paper has a significant number of citations, many of these citations are either general literature reviews on the state of Bayesian Neural Networks/Machine Learning or papers which don’t heavily discuss CLUE but instead mention it briefly. One paper, however, focuses on expanding CLUE with a new variant - [δ-CLUE](https://arxiv.org/abs/2104.06323). This method produced multiple CLUEs for a given input, rather than just a single point estimate.
-
----
-
-## Appendix - AI Generated Summaries of Papers Mentioned
-
-### Getting a CLUE - A Method For Explaining Uncertainty Estimates
-
-The paper "[Getting a CLUE: A Method for Explaining Uncertainty Estimates](https://arxiv.org/abs/2006.06848)" introduces Counterfactual Latent Uncertainty Explanations (CLUEs), a novel method for interpreting uncertainty in probabilistic models, particularly Bayesian Neural Networks (BNNs). CLUE generates counterfactuals—alternative inputs that are similar to the original but result in more confident predictions from the model—by searching in the latent space of a deep generative model like a Variational Autoencoder (VAE). The method provides insight into which features of the input contribute to predictive uncertainty, enabling practitioners to better understand and address uncertainty in model predictions. CLUE was validated through multiple experiments, demonstrating its superiority over other approaches in explaining uncertainty estimates in both classification and regression tasks.
-[Link to paper](https://arxiv.org/abs/2006.06848)
-
-### On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation
-
-This paper introduces a family of algorithms designed to improve uncertainty estimation in deep learning. The authors propose separating representation learning from uncertainty estimation by performing the latter in the last layer of the network, which helps reduce computational costs. Four specific techniques are discussed: Stochastic Gradient Descent (SGD), Stochastic Gradient Langevin Dynamics (SGLD), bootstrapped logistic regressions, and Monte Carlo Dropout. The authors evaluate these methods across several benchmarks, concluding that last-layer uncertainty estimation outperforms conventional methods and offers robust performance in selective classification and out-of-distribution detection.
-[Link to paper](https://arxiv.org/abs/2001.08049)
-
-### Supervising the Decoder of Variational Autoencoders to Improve Scientific Utility
-
-The paper proposes a novel framework, called Second-Order Supervision Variational Autoencoder (SOS-VAE), to address bias in supervised Variational Autoencoders (SVAEs). The bias arises because the supervised objective forces the encoder to approximate a biased posterior distribution, reducing the scientific utility of the generative model. The SOS-VAE framework updates the decoder, instead of the encoder, to maintain an unbiased posterior while inducing a predictive latent representation. The method ensures both accurate reconstructions and predictive performance, making it more suitable for scientific applications like brain activity modeling and experiment design.
-[Link to paper](https://arxiv.org/abs/2109.04561)
-
-### δ-CLUE: Diverse Sets of Explanations for Uncertainty Estimates
-
-This paper builds on the original CLUE method for explaining uncertainty in Bayesian Neural Networks (BNNs) by introducing multiple, diverse counterfactuals for a single uncertain input. While CLUE provides a single counterfactual that results in a more confident prediction, δ-CLUE generates a set of plausible counterfactuals, all within a defined distance (δ) in latent space. This approach offers more comprehensive explanations by exploring multiple diverse ways to reduce uncertainty. The method was tested on the MNIST dataset, demonstrating how the δ-CLUE framework uncovers diverse counterfactuals that yield confident predictions.
-[Link to paper](https://arxiv.org/abs/2104.06323)
