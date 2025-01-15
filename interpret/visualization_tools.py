@@ -11,11 +11,14 @@ from src.utils import MNIST_mean_std_norm
 def latent_map_2d_gauss(BNN, VAE, vae_sig=True, steps=300, extent=4, batch_size=2048):
     """Returns numpy matrices for aleatoric and epistemic entropy sweeps of latent space around
     specified coordinates. Requieres Gaussian output VAE and BNN."""
+    if BNN.device != VAE.device:
+        raise ValueError("BNN and VAE must be on the same device")
+        
     dim_range = np.linspace(-extent, extent, steps)
     dimx, dimy = np.meshgrid(dim_range, dim_range)
     dim_mtx = np.concatenate((np.expand_dims(dimx, 2), np.expand_dims(dimy, 2)), axis=2)
 
-    z = torch.from_numpy(dim_mtx).type(torch.FloatTensor).cuda()
+    z = torch.from_numpy(dim_mtx).type(torch.FloatTensor).to(BNN.device)
     z = z.view(steps ** 2, 2)
     z_mat = z.data.cpu().numpy()
 
@@ -46,8 +49,14 @@ def latent_map_2d_gauss(BNN, VAE, vae_sig=True, steps=300, extent=4, batch_size=
     return z_mat, entropy_vec, aleatoric_vec, epistemic_vec
 
 
-def latent_project_gauss(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=True):
-    if cuda:
+def latent_project_gauss(BNN, VAE, dset, batch_size=1024, device=None, prob_BNN=True):
+    if BNN.device != VAE.device:
+        raise ValueError("BNN and VAE must be on the same device")
+        
+    if device is None:
+        device = BNN.device
+        
+    if device.type == 'cuda':
         loader = torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=False, pin_memory=True,
                                              num_workers=3)
     else:
@@ -60,6 +69,7 @@ def latent_project_gauss(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=Tr
     tr_epistemic_vec = []
 
     for j, (x, y_l) in enumerate(loader):
+        x = x.to(device)
         zz = VAE.recongnition(x).loc.data.cpu().numpy()
         # Note that naming is wrong and this is actually std instead of entropy
         if prob_BNN:
@@ -76,7 +86,7 @@ def latent_project_gauss(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=Tr
 
         z_train.append(zz)
         y_train.append(y_l.numpy())
-        x_train.append(x.numpy())
+        x_train.append(x.cpu().numpy())
 
     tr_aleatoric_vec = torch.cat(tr_aleatoric_vec).cpu().numpy()
     tr_epistemic_vec = torch.cat(tr_epistemic_vec).cpu().numpy()
@@ -87,8 +97,14 @@ def latent_project_gauss(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=Tr
     return tr_aleatoric_vec, tr_epistemic_vec, z_train, x_train, y_train
 
 
-def latent_project_cat(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=True):
-    if cuda:
+def latent_project_cat(BNN, VAE, dset, batch_size=1024, device=None, prob_BNN=True):
+    if BNN.device != VAE.device:
+        raise ValueError("BNN and VAE must be on the same device")
+        
+    if device is None:
+        device = BNN.device
+        
+    if device.type == 'cuda':
         loader = torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=False, pin_memory=True,
                                              num_workers=3)
     else:
@@ -101,6 +117,7 @@ def latent_project_cat(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=True
     tr_epistemic_vec = []
 
     for j, (x, y_l) in enumerate(loader):
+        x = x.to(device)
         zz = VAE.recongnition(x).loc.data.cpu().numpy()
 
         # print(x.shape)
@@ -118,7 +135,7 @@ def latent_project_cat(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=True
 
         z_train.append(zz)
         y_train.append(y_l.numpy())
-        x_train.append(x.numpy())
+        x_train.append(x.cpu().numpy())
 
     tr_aleatoric_vec = torch.cat(tr_aleatoric_vec).cpu().numpy()
     tr_epistemic_vec = torch.cat(tr_epistemic_vec).cpu().numpy()
@@ -129,8 +146,14 @@ def latent_project_cat(BNN, VAE, dset, batch_size=1024, cuda=True, prob_BNN=True
     return tr_aleatoric_vec, tr_epistemic_vec, z_train, x_train, y_train
 
 
-def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, cuda=True, flatten_BNN=False, flatten_VAE=False, prob_BNN=True):
-    if cuda:
+def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, device=None, flatten_BNN=False, flatten_VAE=False, prob_BNN=True):
+    if BNN.device != VAE.device:
+        raise ValueError("BNN and VAE must be on the same device")
+        
+    if device is None:
+        device = BNN.device
+        
+    if device.type == 'cuda':
         loader = torch.utils.data.DataLoader(dset, batch_size=batch_size, shuffle=False, pin_memory=True,
                                              num_workers=3)
     else:
@@ -143,6 +166,7 @@ def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, cuda=True, flatten_BNN
     tr_epistemic_vec = []
 
     for j, (x, y_l) in enumerate(loader):
+        x = x.to(device)
 
         if flatten_VAE:
             zz = VAE.recongnition(x.view(x.shape[0], -1)).loc.data.cpu().numpy()
@@ -168,7 +192,7 @@ def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, cuda=True, flatten_BNN
 
         z_train.append(zz)
         y_train.append(y_l.numpy())
-        x_train.append(x.numpy())
+        x_train.append(x.cpu().numpy())
 
     tr_aleatoric_vec = torch.cat(tr_aleatoric_vec).cpu().numpy()
     tr_epistemic_vec = torch.cat(tr_epistemic_vec).cpu().numpy()
@@ -265,11 +289,14 @@ def gen_bar_plot(labels, data, title=None, xlabel=None, ylabel=None, probs=False
 def latent_map_2d_cat(BNN, VAE, vae_sig=True, steps=300, extent=4, batch_size=2048):
     """Returns numpy matrices for aleatoric and epistemic entropy sweeps of latent space around
     specified coordinates. Requieres Gaussian output VAE and BNN."""
+    if BNN.device != VAE.device:
+        raise ValueError("BNN and VAE must be on the same device")
+        
     dim_range = np.linspace(-extent, extent, steps)
     dimx, dimy = np.meshgrid(dim_range, dim_range)
     dim_mtx = np.concatenate((np.expand_dims(dimx, 2), np.expand_dims(dimy, 2)), axis=2)
 
-    z = torch.from_numpy(dim_mtx).type(torch.FloatTensor).cuda()
+    z = torch.from_numpy(dim_mtx).type(torch.FloatTensor).to(BNN.device)
     z = z.view(steps ** 2, 2)
     z_mat = z.data.cpu().numpy()
 
@@ -383,6 +410,9 @@ def CLUE_viewer(Nim, x_init_batch, y_init_batch, x_vec, BNN, VAE_regen=False, im
 
 
 def FIDO_viewer(Nim, x_init_batch, explainer, BNN, VAEAC, tgets=np.array(range(10))):
+    if BNN.device != VAEAC.device:
+        raise ValueError("BNN and VAEAC must be on the same device")
+        
     x_im = torch.Tensor(x_init_batch[Nim, :, :, :])
 
     to_BNN = MNIST_mean_std_norm(x_im.view(x_im.shape[0], -1))

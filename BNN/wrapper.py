@@ -13,12 +13,20 @@ import os
 from src.probability import decompose_entropy_cat
 
 class BNN_cat(BaseNet):  # for categorical distributions
-    def __init__(self, model, N_train, lr=1e-2, grad_std_mul=30, seed=None):
+    def __init__(self, model, N_train, lr=1e-2, grad_std_mul=30, seed=None, device=None):
         super(BNN_cat, self).__init__()
 
         cprint('y', 'BNN categorical output')
         # Determine the device
-        self.device = get_device()
+        if device is None:
+            if torch.cuda.is_available():
+                self.device = torch.device('cuda')
+            elif torch.backends.mps.is_available():
+                self.device = torch.device('mps')
+            else:
+                self.device = torch.device('cpu')
+        else:
+            self.device = device
 
         self.lr = lr
         self.model = model
