@@ -34,19 +34,19 @@ The primary objective of this project is to adapt the CLUE method such that it e
    - Train a last-layer Bayesian neural network where the deterministic layers essentially act as a feature extractor, mapping inputs $x$ to an intermediate latent representation $z$, and the Bayesian last layer provides uncertainty-aware classification.
 
 2. **Latent Space Optimization**:
-   - When encountering an uncertain prediction, the intermediate latent representation $z$ is optimized to reduce uncertainty in the Bayesian last layer by:
-     - Minimizing uncertainty in the classifier’s prediction.
+   - When encountering an uncertain prediction, the intermediate latent representation $z$ is optimised to reduce uncertainty in the Bayesian last layer by:
+     - Minimising uncertainty in the classifier’s prediction.
      - Maintaining proximity to the original latent representation.
-   - By optimizing directly in the classifier’s latent space, the counterfactual search aligns closely with the model’s 'understanding' of the data.
+   - By optimising directly in the classifier’s latent space, the counterfactual search aligns closely with the model’s 'understanding' of the data.
 
 3. **Final Counterfactual Generation**:
-   - After latent space optimization, the final latent point is decoded using a DGM trained to reconstruct the training data from the features learned by the Bayesian neural network.
+   - After latent space optimisation, the final latent point is decoded using a DGM trained to reconstruct the training data from the features learned by the Bayesian neural network.
 
 #### **Key Advantages**
-This method focuses the optimization process on the classifier’s _internal_ latent space, resulting in the following benefits:
+This method focuses the optimisation process on the classifier’s _internal_ latent space, resulting in the following benefits:
 
-- **Efficiency**: Computation costs are reduced; instead of requiring $n$ generations and $n$ full-network predictions for $n$ optimization steps, only $n$ last-layer predictions are needed, followed by a single final generation for the counterfactual.
-- **Alignment**: By using the classification latent space, the optimization process directly aligns counterfactuals with the classifier’s interpretation of the data. This ensures the generated counterfactuals reflect the decision-making process of the model itself.
+- **Efficiency**: Computation costs are reduced; instead of requiring $n$ generations and $n$ full-network predictions for $n$ optimisation steps, only $n$ last-layer predictions are needed, followed by a single final generation for the counterfactual.
+- **Alignment**: By using the classification latent space, the optimisation process directly aligns counterfactuals with the classifier’s interpretation of the data. This ensures the generated counterfactuals reflect the decision-making process of the model itself.
 - **Class-consistency**: As discussed in the following section, the latent space of the classifier is expected to be sparser than that of a deep generative model (DGM), with distinct separation between class clusters. We anticipate that this structure will encourage counterfactuals to remain within the class of the original input, rather than crossing class boundaries. This contrasts with the original implementation of CLUE, where such boundary-crossing was more common. We argue that counterfactuals which remain class-consistent provide a clearer explanation of uncertainty, avoiding the conflation of uncertainty explanations with those of the classifier's decision boundaries.
 
 
