@@ -260,3 +260,4 @@ fabric.properties
 # notebooks folder and saves
 notebooks/
 my-saves/
+get-pip.py

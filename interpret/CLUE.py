@@ -17,7 +17,7 @@ class CLUE(BaseNet):
     def __init__(self, VAE, BNN, original_x, uncertainty_weight, aleatoric_weight, epistemic_weight, prior_weight, distance_weight,
                  latent_L2_weight, prediction_similarity_weight,
                  lr, desired_preds=None, cond_mask=None, distance_metric=None, z_init=None, norm_MNIST=False, flatten_BNN=False,
-                 regression=False, prob_BNN=True, cuda=True):
+                 regression=False, prob_BNN=True, cuda=False):
 
         """Initialize CLUE model with VAE and BNN components.
         
@@ -108,6 +108,22 @@ class CLUE(BaseNet):
         # Initialize optimizer - Adam works better than SGD for this task
         self.optimizer = Adam(self.trainable_params, lr=lr)
         # SGD(self.trainable_params, lr=lr, momentum=0.5, nesterov=True)
+    
+    def to(self, device):
+        """Move all internal tensors to the specified device"""
+        self.original_x = self.original_x.to(device)
+        if hasattr(self, 'z_init') and self.z_init is not None:
+            self.z_init = self.z_init.to(device)
+        if hasattr(self, 'desired_preds') and self.desired_preds is not None:
+            self.desired_preds = self.desired_preds.to(device)
+        if hasattr(self, 'z'):
+            self.z = self.z.to(device)
+        # Move VAE and BNN to device if they exist
+        # if hasattr(self, 'VAE'):
+        #     self.VAE = self.VAE.to(device)
+        # if hasattr(self, 'BNN'):
+        #     self.BNN = self.BNN.to(device)
+        return self
 
     def randomise_z_init(self, std):
         """Add random noise to initial latent vector.
