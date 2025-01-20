@@ -168,9 +168,20 @@ class BaseNet(object):
             'optimizer_state_dict': self.optimizer.state_dict()
         }, filename)
 
-    def new_load(self, filename):
+    def new_load(self, filename, device=None):
         cprint('c', f'Reading {filename}\n')
-        state_dict = torch.load(filename)
+
+        # Determine best available device
+        if device is None:
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+            elif torch.backends.mps.is_available():
+                device = torch.device('mps')
+            else:
+                device = torch.device('cpu')
+        print(f"Loading model to device: {device}")
+
+        state_dict = torch.load(filename, map_location=device)
         
         self.epoch = state_dict['epoch']
         self.lr = state_dict['lr']
