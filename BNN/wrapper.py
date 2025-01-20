@@ -142,61 +142,61 @@ class BNN_cat(BaseNet):  # for categorical distributions
             if not x.requires_grad:
                 x.requires_grad = True
 
-        # outputs = []
-        # with torch.no_grad():
-        #     original_state = copy.deepcopy(self.model.state_dict())
-        #     for idx, weight_dict in enumerate(self.weight_set_samples[:Nsamples]):
-        #         self.model.load_state_dict(weight_dict)
-        #         output = self.model(x)
-        #         # Maintain the original logic for handling outputs
-        #         if grad:
-        #             outputs.append(output.clone())
-        #         else:
-        #             outputs.append(output.detach())
+        outputs = []
+        with torch.no_grad():
+            original_state = copy.deepcopy(self.model.state_dict())
+            for idx, weight_dict in enumerate(self.weight_set_samples[:Nsamples]):
+                self.model.load_state_dict(weight_dict)
+                output = self.model(x)
+                # Maintain the original logic for handling outputs
+                if grad:
+                    outputs.append(output.clone())
+                else:
+                    outputs.append(output.detach())
 
-        #     # Restore original weights
-        #     self.model.load_state_dict(original_state)
+            # Restore original weights
+            self.model.load_state_dict(original_state)
 
-        # out = torch.stack(outputs, dim=0)
-        # if grad:
-        #     out.requires_grad_(True)
+        out = torch.stack(outputs, dim=0)
+        if grad:
+            out.requires_grad_(True)
         
-        # # Softmax is applied over the classes here as it's not done in the model structur
-        # # (see MLP class in models.py)
-        # prob_out = F.softmax(out, dim=2)
-
-        # return prob_out
-        out = x.data.new(Nsamples, x.shape[0], self.model.output_dim)
-
-
-
-        # iterate over all saved weight configuration samples
-
-        for idx, weight_dict in enumerate(self.weight_set_samples):
-
-            if idx == Nsamples:
-
-                break
-
-            self.model.load_state_dict(weight_dict)
-
-            out[idx] = self.model(x)
-
-
-
-        out = out[:idx]
-
+        # Softmax is applied over the classes here as it's not done in the model structur
+        # (see MLP class in models.py)
         prob_out = F.softmax(out, dim=2)
 
+        return prob_out
+        # out = x.data.new(Nsamples, x.shape[0], self.model.output_dim)
 
 
-        if grad:
 
-            return prob_out
+        # # iterate over all saved weight configuration samples
 
-        else:
+        # for idx, weight_dict in enumerate(self.weight_set_samples):
 
-            return prob_out.data
+        #     if idx == Nsamples:
+
+        #         break
+
+        #     self.model.load_state_dict(weight_dict)
+
+        #     out[idx] = self.model(x)
+
+
+
+        # out = out[:idx]
+
+        # prob_out = F.softmax(out, dim=2)
+
+
+
+        # if grad:
+
+        #     return prob_out
+
+        # else:
+
+        #     return prob_out.data
 
     def get_weight_samples(self, Nsamples=0):
         """return weight samples from posterior in a single-column array"""

@@ -169,9 +169,9 @@ def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, device=None, flatten_B
         x = x.to(device)
 
         if flatten_VAE:
-            zz = VAE.recongnition(x.view(x.shape[0], -1)).loc.data.cpu().numpy()
+            zz = VAE.recongnition(x.view(x.shape[0], -1)).loc.detach().cpu().numpy()
         else:
-            zz = VAE.recongnition(x).loc.data.cpu().numpy()
+            zz = VAE.recongnition(x).loc.detach().cpu().numpy()
 
         if flatten_BNN:
             to_BNN = MNIST_mean_std_norm(x.view(x.shape[0], -1))
@@ -179,7 +179,7 @@ def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, device=None, flatten_B
             to_BNN = MNIST_mean_std_norm(x)
 
         if prob_BNN:
-            probs = BNN.sample_predict(to_BNN, Nsamples=0, grad=False).data
+            probs = BNN.sample_predict(to_BNN, Nsamples=0, grad=False)
             total_entropy, aleatoric_entropy, epistemic_entropy = decompose_entropy_cat(probs)
         else:
             probs = BNN.predict(to_BNN, grad=False)
@@ -187,15 +187,15 @@ def latent_project_MNIST(BNN, VAE, dset, batch_size=1024, device=None, flatten_B
             aleatoric_entropy = total_entropy
             epistemic_entropy = total_entropy * 0
 
-        tr_epistemic_vec.append(epistemic_entropy.data)
-        tr_aleatoric_vec.append(aleatoric_entropy.data)
+        tr_epistemic_vec.append(epistemic_entropy)
+        tr_aleatoric_vec.append(aleatoric_entropy)
 
         z_train.append(zz)
         y_train.append(y_l.numpy())
         x_train.append(x.cpu().numpy())
 
-    tr_aleatoric_vec = torch.cat(tr_aleatoric_vec).cpu().numpy()
-    tr_epistemic_vec = torch.cat(tr_epistemic_vec).cpu().numpy()
+    tr_aleatoric_vec = torch.cat(tr_aleatoric_vec).detach().cpu().numpy()
+    tr_epistemic_vec = torch.cat(tr_epistemic_vec).detach().cpu().numpy()
     z_train = np.concatenate(z_train)
     x_train = np.concatenate(x_train)
     y_train = np.concatenate(y_train)
