@@ -156,6 +156,8 @@ class MNISTconv_VAE_bern_net(BaseNet):
 
     def regenerate(self, z, grad=False):
         self.set_mode_train(train=False)
+        if isinstance(z, np.ndarray):
+            z = torch.from_numpy(z).float()
         if grad:
             if not z.requires_grad:
                 z.requires_grad = True
