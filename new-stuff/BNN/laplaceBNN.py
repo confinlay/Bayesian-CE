@@ -64,8 +64,19 @@ class BayesianMLP:
             return F.softmax(pred, dim=-1)
         return pred
 
-def train_mlp(model, train_loader, test_loader, epochs=10, device='cuda'):
+def get_device():
+    """Get the appropriate device (MPS for Mac, CUDA for NVIDIA, or CPU)."""
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    elif torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+def train_mlp(model, train_loader, test_loader, epochs=10, device=None):
     """Train the base MLP model."""
+    if device is None:
+        device = get_device()
+    
     optimizer = torch.optim.Adam(model.parameters())
     model.train()
     
@@ -75,6 +86,7 @@ def train_mlp(model, train_loader, test_loader, epochs=10, device='cuda'):
         total = 0
         
         for x, y in train_loader:
+            # Ensure tensors are on the correct device
             x, y = x.to(device), y.to(device)
             
             optimizer.zero_grad()
@@ -83,9 +95,10 @@ def train_mlp(model, train_loader, test_loader, epochs=10, device='cuda'):
             loss.backward()
             optimizer.step()
             
-            total_loss += loss.item()
+            # Move tensors to CPU for numerical operations
+            total_loss += loss.cpu().item()
             pred = out.argmax(dim=1)
-            correct += (pred == y).sum().item()
+            correct += (pred == y).cpu().sum().item()
             total += y.size(0)
             
         acc = correct / total
@@ -94,8 +107,9 @@ def train_mlp(model, train_loader, test_loader, epochs=10, device='cuda'):
     return model
 
 def main():
-    # Set device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Get appropriate device
+    device = get_device()
+    print(f"Using device: {device}")
     
     # Load MNIST
     transform = transforms.Compose([
@@ -103,15 +117,15 @@ def main():
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST('./data', train=False, transform=transform)
+    train_dataset = datasets.MNIST('../data', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST('../data', train=False, transform=transform)
     
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=128)
     
     # Create and train base model
     mlp = MLP().to(device)
-    mlp = train_mlp(mlp, train_loader, test_loader)
+    mlp = train_mlp(mlp, train_loader, test_loader, device=device)
     
     # Create Bayesian version and fit LA
     bayes_mlp = BayesianMLP(mlp)
@@ -124,7 +138,10 @@ def main():
     # Get predictions with uncertainty
     pred_probs = bayes_mlp.predict(x_test)
     print("\nPredictive distribution shape:", pred_probs.shape)
-    print("Max probability:", pred_probs.max(dim=1)[0][:5])  # Show first 5 confidence scores
+    
+    # Move to CPU for printing
+    max_probs = pred_probs.max(dim=1)[0][:5].cpu()
+    print("Max probability:", max_probs)  # Show first 5 confidence scores
 
 if __name__ == '__main__':
     main()
