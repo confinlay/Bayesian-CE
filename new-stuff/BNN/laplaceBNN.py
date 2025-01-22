@@ -7,8 +7,14 @@ from laplace import Laplace
 
 class MLP(nn.Module):
     """Simple MLP for MNIST classification."""
-    def __init__(self, input_dim=784, hidden_dims=[256, 128], output_dim=10):
+    def __init__(self, input_dim=784, hidden_dims=[256, 128], output_dim=10, device=None):
         super().__init__()
+
+        if device is None:
+            device = get_device()
+        
+        self.device = device
+        self.to(self.device)
         
         # Build layers
         layers = []
@@ -26,10 +32,46 @@ class MLP(nn.Module):
         self.layers = nn.Sequential(*layers)
         
     def forward(self, x):
+        x = x.to(self.device)
+        self.to(self.device)
+
         # Flatten input if needed
         if len(x.shape) > 2:
             x = x.view(x.shape[0], -1)
         return self.layers(x)
+        
+    def fit(self, train_loader, epochs=10):
+        """Train the MLP model."""
+        
+        self.to(self.device)
+        optimizer = torch.optim.Adam(self.parameters())
+        self.train()
+        
+        for epoch in range(epochs):
+            total_loss = 0
+            correct = 0
+            total = 0
+            
+            for x, y in train_loader:
+                # Ensure tensors are on the correct device
+                x, y = x.to(self.device), y.to(self.device)
+                
+                optimizer.zero_grad()
+                out = self(x)
+                loss = F.cross_entropy(out, y)
+                loss.backward()
+                optimizer.step()
+                
+                # Move tensors to CPU for numerical operations
+                total_loss += loss.cpu().item()
+                pred = out.argmax(dim=1)
+                correct += (pred == y).cpu().sum().item()
+                total += y.size(0)
+                
+            acc = correct / total
+            print(f'Epoch {epoch+1}: Loss = {total_loss/len(train_loader):.4f}, Acc = {acc:.4f}')
+        
+        return self
 
 class BayesianMLP:
     """Wrapper for MLP with last-layer Laplace approximation."""
@@ -39,6 +81,11 @@ class BayesianMLP:
         
     def fit(self, train_loader):
         """Fit the Laplace approximation."""
+        # Check if the current device is MPS and switch to CPU
+        if torch.device('mps') == self.base_model.device:
+            self.base_model.device = torch.device('cpu')
+
+        
         # Initialize Laplace with last-layer setting
         self.la = Laplace(
             self.base_model,
@@ -47,21 +94,26 @@ class BayesianMLP:
             hessian_structure='kron'
         )
         
+        # Move data to the correct device
+        for x, y in train_loader:
+            x, y = x.to(self.base_model.device), y.to(self.base_model.device)
+        
         # Fit the Laplace approximation
         self.la.fit(train_loader)
         
         # Optimize the prior precision
-        self.la.optimize_prior_precision()
+        self.la.optimize_prior_precision(method='marglik')
         
     def predict(self, x, link='softmax'):
         """Get predictions with uncertainty."""
         if self.la is None:
             raise RuntimeError("Model needs to be fit first!")
-            
+        
+        x = x.to(self.base_model.device)
         # Get predictions with uncertainty
         pred = self.la(x)
-        if link == 'softmax':
-            return F.softmax(pred, dim=-1)
+        # if link == 'softmax':
+        #     return F.softmax(pred, dim=-1)
         return pred
 
 def get_device():
@@ -71,77 +123,3 @@ def get_device():
     elif torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
-
-def train_mlp(model, train_loader, test_loader, epochs=10, device=None):
-    """Train the base MLP model."""
-    if device is None:
-        device = get_device()
-    
-    optimizer = torch.optim.Adam(model.parameters())
-    model.train()
-    
-    for epoch in range(epochs):
-        total_loss = 0
-        correct = 0
-        total = 0
-        
-        for x, y in train_loader:
-            # Ensure tensors are on the correct device
-            x, y = x.to(device), y.to(device)
-            
-            optimizer.zero_grad()
-            out = model(x)
-            loss = F.cross_entropy(out, y)
-            loss.backward()
-            optimizer.step()
-            
-            # Move tensors to CPU for numerical operations
-            total_loss += loss.cpu().item()
-            pred = out.argmax(dim=1)
-            correct += (pred == y).cpu().sum().item()
-            total += y.size(0)
-            
-        acc = correct / total
-        print(f'Epoch {epoch+1}: Loss = {total_loss/len(train_loader):.4f}, Acc = {acc:.4f}')
-    
-    return model
-
-def main():
-    # Get appropriate device
-    device = get_device()
-    print(f"Using device: {device}")
-    
-    # Load MNIST
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
-    
-    train_dataset = datasets.MNIST('../data', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST('../data', train=False, transform=transform)
-    
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=128)
-    
-    # Create and train base model
-    mlp = MLP().to(device)
-    mlp = train_mlp(mlp, train_loader, test_loader, device=device)
-    
-    # Create Bayesian version and fit LA
-    bayes_mlp = BayesianMLP(mlp)
-    bayes_mlp.fit(train_loader)
-    
-    # Test predictions with uncertainty
-    x_test, y_test = next(iter(test_loader))
-    x_test = x_test.to(device)
-    
-    # Get predictions with uncertainty
-    pred_probs = bayes_mlp.predict(x_test)
-    print("\nPredictive distribution shape:", pred_probs.shape)
-    
-    # Move to CPU for printing
-    max_probs = pred_probs.max(dim=1)[0][:5].cpu()
-    print("Max probability:", max_probs)  # Show first 5 confidence scores
-
-if __name__ == '__main__':
-    main()

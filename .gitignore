@@ -261,3 +261,5 @@ fabric.properties
 notebooks/
 my-saves/
 get-pip.py
+
+data/
