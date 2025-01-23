@@ -73,19 +73,34 @@ class MLP(nn.Module):
         
         return self
 
+    def predict(self, x, grad=True):
+        """Get predictions."""
+        if grad:
+            self.train()
+        else:
+            self.eval()
+            
+        x = x.to(self.device)
+        with torch.set_grad_enabled(grad):
+            out = self(x)
+            probs = F.softmax(out, dim=1)
+        return probs
+
 class BayesianMLP:
     """Wrapper for MLP with last-layer Laplace approximation."""
     def __init__(self, base_model):
         self.base_model = base_model
         self.la = None
+        self.device = base_model.device
         
     def fit(self, train_loader):
         """Fit the Laplace approximation."""
         # Check if the current device is MPS and switch to CPU
-        if torch.device('mps') == self.base_model.device:
-            self.base_model.device = torch.device('cpu')
+        if torch.device('mps') == self.device:
+            self.device = torch.device('cpu')
+            self.base_model.device = self.device
+            self.base_model.to(self.device)
 
-        
         # Initialize Laplace with last-layer setting
         self.la = Laplace(
             self.base_model,
@@ -96,7 +111,7 @@ class BayesianMLP:
         
         # Move data to the correct device
         for x, y in train_loader:
-            x, y = x.to(self.base_model.device), y.to(self.base_model.device)
+            x, y = x.to(self.device), y.to(self.device)
         
         # Fit the Laplace approximation
         self.la.fit(train_loader)
@@ -104,17 +119,18 @@ class BayesianMLP:
         # Optimize the prior precision
         self.la.optimize_prior_precision(method='marglik')
         
-    def predict(self, x, link='softmax'):
+    def predict(self, x, link='softmax', grad=True):
         """Get predictions with uncertainty."""
         if self.la is None:
             raise RuntimeError("Model needs to be fit first!")
         
-        x = x.to(self.base_model.device)
-        # Get predictions with uncertainty
-        pred = self.la(x)
-        # if link == 'softmax':
-        #     return F.softmax(pred, dim=-1)
-        return pred
+        x = x.to(self.device)
+        with torch.enable_grad():
+            pred_mean, pred_var = self.la(x, link=link, grad=grad)
+        
+        print('pred_var requires_grad: ', pred_var.requires_grad)
+        
+        return pred_mean, pred_var
 
 def get_device():
     """Get the appropriate device (MPS for Mac, CUDA for NVIDIA, or CPU)."""

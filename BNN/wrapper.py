@@ -131,10 +131,15 @@ class BNN_cat(BaseNet):  # for categorical distributions
         return probs.data
 
     def sample_predict(self, x, Nsamples, grad=False):
+        """
+        Original sample_predict method.
+        Return predictions by reloading weight samples and computing outputs.
+        Note: This implementation breaks the computation graph.
+        """
         self.set_mode_train(train=False)
         if Nsamples == 0:
             Nsamples = len(self.weight_set_samples)
-        x, = to_variable(var=(x,), cuda=(self.device.type == 'cuda'))
+        x, = to_variable(var=(x,), cuda=(self.device.type=='cuda'))
         
         if grad:
             self.optimizer.zero_grad()
@@ -162,8 +167,32 @@ class BNN_cat(BaseNet):  # for categorical distributions
         out = torch.stack(outputs, dim=0)
         # Softmax across classes
         prob_out = F.softmax(out, dim=2)
+
+        print("prob_out.requires_grad: ", prob_out.requires_grad)
         return prob_out
 
+    def sample_predict_ensemble(self, x, grad=False):
+        """
+        Return predictions from each ensemble model in a single forward pass.
+        If grad=True, gradients can backpropagate from the final averaged predictions 
+        to the input x (and to model params if requires_grad=True).
+        """
+        self.set_mode_train(train=False)
+        x, = to_variable(var=(x,), cuda=(self.device.type == 'cuda'))
+        
+        if grad:
+            # Ensure ensemble models' parameters do not require gradients
+            for net in self.ensemble_models:
+                for param in net.parameters():
+                    param.requires_grad = False
+
+        outputs = []
+        for net in self.ensemble_models:
+            out = net(x)
+            outputs.append(out)
+        out_stack = torch.stack(outputs, dim=0)
+        prob_out = F.softmax(out_stack, dim=2)
+        return prob_out
 
     def get_weight_samples(self, Nsamples=0):
         """return weight samples from posterior in a single-column array"""
@@ -251,6 +280,9 @@ class BNN_cat(BaseNet):  # for categorical distributions
         
         # Subsample if necessary
         self.weight_set_samples = self.weight_set_samples[::subsample]
+        
+        # Build the ensemble after loading weights
+        self.build_ensemble()
     
     def estimate_uncertainty_from_predictions(self, probs):
         """
@@ -280,4 +312,15 @@ class BNN_cat(BaseNet):  # for categorical distributions
         disagreement = (pred_classes != mode_classes).float().mean(dim=0)  # (batch_size)
         
         return disagreement
+    
+    def build_ensemble(self):
+        """Build a separate nn.Module for each saved weight dict."""
+        self.ensemble_models = []
+        for weight_dict in self.weight_set_samples:
+            # Copy the architecture
+            net_copy = copy.deepcopy(self.model)  
+            net_copy.load_state_dict(weight_dict)
+            net_copy.to(self.device)
+            net_copy.eval()
+            self.ensemble_models.append(net_copy)
     

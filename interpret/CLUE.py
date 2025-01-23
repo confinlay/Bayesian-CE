@@ -22,7 +22,6 @@ class CLUE(BaseNet):
         # Load models
         self.VAE = VAE
         self.BNN = BNN
-        self.BNN.set_mode_train(train=False)
         self.VAE.set_mode_train(train=False)
 
         # Objective function definition
@@ -124,7 +123,7 @@ class CLUE(BaseNet):
                 preds = mu_vec.mean(dim=0)
             else:
                 print("toBNN.requires_grad: ", to_BNN.requires_grad)
-                probs = self.BNN.sample_predict(to_BNN, Nsamples=0, grad=True)
+                probs = self.BNN.sample_predict_ensemble(to_BNN, grad=True)
                 print("probs.requires_grad: ", probs.requires_grad)
                 total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty = decompose_entropy_cat(probs)
                 preds = probs.mean(dim=0)
@@ -137,6 +136,7 @@ class CLUE(BaseNet):
                 preds = mu
             else:
                 probs = self.BNN.predict(to_BNN, grad=True)
+                print("probs.requires_grad: ", probs.requires_grad)
                 total_uncertainty = -(probs * torch.log(probs + 1e-10)).sum(dim=1, keepdim=False)
                 aleatoric_uncertainty = total_uncertainty
                 epistemic_uncertainty = total_uncertainty * 0
@@ -174,7 +174,11 @@ class CLUE(BaseNet):
             return objective, 0
     
     def simple_get_objective(self, x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds):
+        print("total_uncertainty: ", total_uncertainty)
+        print("total_uncertainty.requires_grad: ", total_uncertainty.requires_grad)
         objective = self.uncertainty_weight * total_uncertainty
+        print("objective: ", objective)
+        print("objective.requires_grad: ", objective.requires_grad)
         return objective
 
     def optimise(self, min_steps=3, max_steps=25,
@@ -190,14 +194,14 @@ class CLUE(BaseNet):
 
         it_mask = np.zeros(self.z.shape[0])
 
-        self.randomise_z_init(std=std)
-        print("randomised z: ", std)
+        # self.randomise_z_init(std=std)
+        # print("randomised z: ", std)
 
         for step_idx in range(max_steps):
             self.optimizer.zero_grad()
             total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, x, preds = self.uncertainty_from_z()
-            # objective, w_dist = self.get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
-            objective = self.simple_get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
+            objective, w_dist = self.get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
+            # objective = self.simple_get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
             
             # Backpropagate
             objective.sum(dim=0).backward()
@@ -214,7 +218,7 @@ class CLUE(BaseNet):
             uncertainty_vec[step_idx, :] = total_uncertainty.detach().cpu().numpy()
             aleatoric_vec[step_idx, :] = aleatoric_uncertainty.detach().cpu().numpy()
             epistemic_vec[step_idx, :] = epistemic_uncertainty.detach().cpu().numpy()
-            # dist_vec[step_idx, :] = w_dist.detach().cpu().numpy()
+            dist_vec[step_idx, :] = w_dist.detach().cpu().numpy()
             cost_vec[step_idx, :] = objective.detach().cpu().numpy()
             x_vec.append(x.cpu())  # We don't convert to numpy yet because we need x0 for L1
             z_vec.append(self.z.detach().cpu().numpy())
