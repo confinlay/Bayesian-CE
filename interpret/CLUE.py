@@ -1,55 +1,30 @@
-from __future__ import division, print_function
-from src.utils import *
-from torch.optim import Adam, SGD
+import numpy as np
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim import Adam
+
+from src.utils import generate_ind_batch, MNIST_mean_std_norm, BaseNet, to_variable, cprint, save_object, load_object
 from src.probability import decompose_entropy_cat, decompose_std_gauss
 
-
-
 class CLUE(BaseNet):
-    """This will be a general class for CLUE (Counterfactual Local Uncertainty Explanations).
-    A proper optimiser will be used instead of a manually designed one.
-    
-    CLUE generates counterfactual explanations by optimizing latent representations 
-    to maximize uncertainty while maintaining plausibility."""
+    """This will be a general class for CLUE, etc.
+    A propper optimiser will be used instead of my manually designed one."""
 
     def __init__(self, VAE, BNN, original_x, uncertainty_weight, aleatoric_weight, epistemic_weight, prior_weight, distance_weight,
                  latent_L2_weight, prediction_similarity_weight,
                  lr, desired_preds=None, cond_mask=None, distance_metric=None, z_init=None, norm_MNIST=False, flatten_BNN=False,
-                 regression=False, prob_BNN=True, cuda=False):
+                 regression=False, prob_BNN=True, cuda=True):
 
-        """Initialize CLUE model with VAE and BNN components.
-        
-        Args:
-            VAE: Variational autoencoder model for generating counterfactuals
-            BNN: Bayesian neural network for predictions and uncertainty
-            original_x: Original input to explain
-            uncertainty_weight: Weight for total uncertainty term
-            aleatoric_weight: Weight for aleatoric uncertainty term  
-            epistemic_weight: Weight for epistemic uncertainty term
-            prior_weight: Weight for VAE prior term
-            distance_weight: Weight for distance penalty
-            latent_L2_weight: Weight for L2 penalty on latent space
-            prediction_similarity_weight: Weight for prediction similarity term
-            lr: Learning rate
-            desired_preds: Target predictions if doing conditional generation
-            cond_mask: Mask for conditional generation
-            distance_metric: Distance function for x-space
-            z_init: Initial latent vector
-            norm_MNIST: Whether to normalize like MNIST
-            flatten_BNN: Whether to flatten input to BNN
-            regression: Whether doing regression vs classification
-            prob_BNN: Whether BNN outputs probabilities
-            cuda: Whether to use GPU
-        """
-         # Load models and set to eval mode
+        """Option specification:
+        MNIST: boolean, specifies whether to apply normalisation to VAE outputs before being passed on to the BNN"""
+        # Load models
         self.VAE = VAE
         self.BNN = BNN
-        self.BNN.set_mode_train(train=False)
         self.VAE.set_mode_train(train=False)
 
-        # Store weights for different objective terms
+        # Objective function definition
         self.uncertainty_weight = uncertainty_weight
         self.aleatoric_weight = aleatoric_weight
         self.epistemic_weight = epistemic_weight
@@ -62,10 +37,10 @@ class CLUE(BaseNet):
         self.desired_preds = desired_preds
         # if self.desired_preds is not None:
         #     self.desired_preds = torch.Tensor(self.desired_preds)
-            # if not regression:
-            #     self.desired_preds = self.desired_preds#.type(torch.LongTensor)
+        # if not regression:
+        #     self.desired_preds = self.desired_preds#.type(torch.LongTensor)
 
-        # Model configuration flags
+        # Other CLUE parameters
         self.regression = regression
         # self.vae_sig = vae_sig  # We dont actually use this in our CLUE generative models as it performs worse
         self.flatten_BNN = flatten_BNN
@@ -74,8 +49,6 @@ class CLUE(BaseNet):
 
         self.prob_BNN = prob_BNN
         self.cuda = cuda
-        
-        # Move tensors to GPU if using CUDA
         if self.cuda:
             self.original_x = self.original_x.cuda()
             # self.z_init = self.z_init.cuda()
@@ -83,14 +56,12 @@ class CLUE(BaseNet):
                 self.desired_preds = self.desired_preds.cuda()
         self.cond_mask = cond_mask
 
-        # Initialize trainable parameters
+        # Trainable params
         self.trainable_params = list()
 
-        # For ablation studies without VAE, directly optimize x
-        if self.VAE is None:  # this will be for ablation test: sensitivity analysis
+        if self.VAE is None:  # this will be for ablation test: sensitivity analisys
             self.trainable_params.append(nn.Parameter(original_x))
         else:
-            # Initialize latent vector z either from provided z_init or zeros
             self.z_dim = VAE.latent_dim
             if z_init is not None:
                 self.z_init = torch.Tensor(z_init)
@@ -99,79 +70,44 @@ class CLUE(BaseNet):
                 self.z = nn.Parameter(self.z_init)
                 self.trainable_params.append(self.z)
             else:
-                self.z_init = torch.zeros(self.z_dim).unsqueeze(0).repeat(original_x.shape[0],1)
+                self.z_init = torch.zeros(self.z_dim).unsqueeze(0).repeat(original_x.shape[0], 1)
                 if self.cuda:
                     self.z_init = self.z_init.cuda()
                 self.z = nn.Parameter(self.z_init)
                 self.trainable_params.append(self.z)
 
-        # Initialize optimizer - Adam works better than SGD for this task
+        # Optimiser
         self.optimizer = Adam(self.trainable_params, lr=lr)
         # SGD(self.trainable_params, lr=lr, momentum=0.5, nesterov=True)
-    
-    def to(self, device):
-        """Move all internal tensors to the specified device"""
-        self.original_x = self.original_x.to(device)
-        if hasattr(self, 'z_init') and self.z_init is not None:
-            self.z_init = self.z_init.to(device)
-        if hasattr(self, 'desired_preds') and self.desired_preds is not None:
-            self.desired_preds = self.desired_preds.to(device)
-        if hasattr(self, 'z'):
-            self.z = self.z.to(device)
-        # Move VAE and BNN to device if they exist
-        # if hasattr(self, 'VAE'):
-        #     self.VAE = self.VAE.to(device)
-        # if hasattr(self, 'BNN'):
-        #     self.BNN = self.BNN.to(device)
-        return self
+        print("self.z.requires_grad: ", self.z.requires_grad)
 
     def randomise_z_init(self, std):
-        """Add random noise to initial latent vector.
-        
-        Args:
-            std: Standard deviation of noise to add
-        """
         # assert (self.z.data == self.z_init).all()
         eps = torch.randn(self.z.shape).type(self.z.type())
         self.z = std * eps + self.z_init
         return None
 
     def pred_dist(self, preds):
-        """Calculate distance between predictions and desired predictions.
-        
-        Args:
-            preds: Model predictions
-            
-        Returns:
-            Distance between predictions and targets
-        """
         # We dont implement for now as we could just use VAEAC with class conditioning
         assert self.desired_preds is not None
 
         if self.regression:
             dist = F.mse_loss(preds, self.desired_preds, reduction='none')
         else:
-            # For single class targets use NLL loss
+
             if len(self.desired_preds.shape) == 1 or self.desired_preds.shape[1] == 1:
                 dist = F.nll_loss(preds, self.desired_preds, reduction='none')
-            else:  # For soft targets use cross entropy
+            else:  # Soft cross entropy loss
                 dist = -(torch.log(preds) * self.desired_preds).sum(dim=1)
         return dist
 
     def uncertainty_from_z(self):
-        """Generate counterfactual from z and compute uncertainties.
-        
-        Returns:
-            total_uncertainty: Combined uncertainty
-            aleatoric_uncertainty: Data uncertainty
-            epistemic_uncertainty: Model uncertainty 
-            x: Generated counterfactual
-            preds: Model predictions
-        """
-        # Generate counterfactual x from latent z
+        # if self.vae_sig:
+        #     x = self.VAE.regenerate(self.z, grad=True).loc
+        # else:
+        # We dont use unflatten option because BNNs always take flattened input and unflatten doesnt support grad
         x = self.VAE.regenerate(self.z, grad=True)
 
-        # Prepare input for BNN
         if self.flatten_BNN:
             to_BNN = x.view(x.shape[0], -1)
         else:
@@ -180,99 +116,74 @@ class CLUE(BaseNet):
         if self.norm_MNIST:
             to_BNN = MNIST_mean_std_norm(to_BNN)
 
-        # Get predictions and uncertainties from BNN
         if self.prob_BNN:
             if self.regression:
-                # For regression, get mean and std predictions
                 mu_vec, std_vec = self.BNN.sample_predict(to_BNN, Nsamples=0, grad=True)
                 total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty = decompose_std_gauss(mu_vec, std_vec)
                 preds = mu_vec.mean(dim=0)
             else:
-                # For classification, get probability predictions
-                probs = self.BNN.sample_predict(to_BNN, Nsamples=0, grad=True)
+                print("toBNN.requires_grad: ", to_BNN.requires_grad)
+                probs = self.BNN.sample_predict_ensemble(to_BNN, grad=True)
+                print("probs.requires_grad: ", probs.requires_grad)
                 total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty = decompose_entropy_cat(probs)
                 preds = probs.mean(dim=0)
         else:
-            # Non-probabilistic BNN case
             if self.regression:
                 mu, std = self.BNN.predict(to_BNN, grad=True)
                 total_uncertainty = std.squeeze(1)
                 aleatoric_uncertainty = total_uncertainty
-                epistemic_uncertainty = total_uncertainty*0
+                epistemic_uncertainty = total_uncertainty * 0
                 preds = mu
             else:
                 probs = self.BNN.predict(to_BNN, grad=True)
+                print("probs.requires_grad: ", probs.requires_grad)
                 total_uncertainty = -(probs * torch.log(probs + 1e-10)).sum(dim=1, keepdim=False)
                 aleatoric_uncertainty = total_uncertainty
-                epistemic_uncertainty = total_uncertainty*0
+                epistemic_uncertainty = total_uncertainty * 0
                 preds = probs
 
         return total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, x, preds
 
     def get_objective(self, x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds):
-        """Compute full objective function combining all terms.
-        
-        Args:
-            x: Generated counterfactual
-            total_uncertainty: Combined uncertainty
-            aleatoric_uncertainty: Data uncertainty
-            epistemic_uncertainty: Model uncertainty
-            preds: Model predictions
-            
-        Returns:
-            objective: Full objective to maximize
-            w_dist: Weighted distance term
-        """
-        # Combine uncertainty terms
+        # Put objectives together
         objective = self.uncertainty_weight * total_uncertainty + self.aleatoric_weight * aleatoric_uncertainty + \
                     self.epistemic_weight * epistemic_uncertainty
 
-        # Add prior term if using VAE
         if self.VAE is not None and self.cond_mask is None and self.prior_weight > 0:
             try:
                 prior_loglike = self.VAE.prior.log_prob(self.z).sum(dim=1)
             except:  # This mode is just for CondCLUE but the objective method is inherited
                 prior_loglike = self.VAEAC.get_prior(self.original_x, self.cond_mask, flatten=False).log_prob(self.z).sum(dim=1)
-            objective = objective + self.prior_weight * prior_loglike
+            objective += self.prior_weight * prior_loglike
 
-        # Add L2 penalty on latent space
         if self.latent_L2_weight != 0 and self.latent_L2_weight is not None:
+            # print('latent_L2_weight is not implement correctly as distances are computed across batches')
             latent_dist = F.mse_loss(self.z, self.z_init, reduction='none').view(x.shape[0], -1).sum(dim=1)
-            objective = objective + self.latent_L2_weight * latent_dist
+            objective += self.latent_L2_weight * latent_dist
 
-        # Add prediction similarity term if target predictions provided
         if self.desired_preds is not None:
             pred_dist = self.pred_dist(preds).view(preds.shape[0], -1).sum(dim=1)
-            objective = objective + self.prediction_similarity_weight * pred_dist
+            objective += self.prediction_similarity_weight * pred_dist
 
-        # Add distance penalty if metric provided
         if self.distance_metric is not None:
             dist = self.distance_metric(x, self.original_x).view(x.shape[0], -1).sum(dim=1)
-            objective = objective + self.distance_weight * dist
+            objective += self.distance_weight * dist
 
-            return objective, self.distance_weight*dist
+            return objective, self.distance_weight * dist
         else:
             return objective, 0
+    
+    def simple_get_objective(self, x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds):
+        print("total_uncertainty: ", total_uncertainty)
+        print("total_uncertainty.requires_grad: ", total_uncertainty.requires_grad)
+        objective = self.uncertainty_weight * total_uncertainty
+        print("objective: ", objective)
+        print("objective.requires_grad: ", objective.requires_grad)
+        return objective
 
     def optimise(self, min_steps=3, max_steps=25,
-                 n_early_stop=3):
-        """Run optimization to generate counterfactual.
-        
-        Args:
-            min_steps: Minimum optimization steps
-            max_steps: Maximum optimization steps  
-            n_early_stop: Steps without improvement before early stopping
-            
-        Returns:
-            z_vec: Latent vectors at each step
-            x_vec: Generated counterfactuals at each step
-            uncertainty_vec: Uncertainty values at each step
-            epistemic_vec: Epistemic uncertainty at each step
-            aleatoric_vec: Aleatoric uncertainty at each step
-            cost_vec: Objective values at each step
-            dist_vec: Distance values at each step
-        """
-        # Initialize vectors to store optimization trajectory
+                 n_early_stop=3, std=0.2):
+        # Vectors to capture changes for this minibatch
         z_vec = [self.z.detach().cpu().numpy()]
         x_vec = []
         uncertainty_vec = np.zeros((max_steps, self.z.shape[0]))
@@ -283,73 +194,84 @@ class CLUE(BaseNet):
 
         it_mask = np.zeros(self.z.shape[0])
 
-        for step_idx in range(max_steps):
-            print(f"Step {step_idx+1}/{max_steps}")
+        # self.randomise_z_init(std=std)
+        # print("randomised z: ", std)
 
+        for step_idx in range(max_steps):
             self.optimizer.zero_grad()
             total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, x, preds = self.uncertainty_from_z()
             objective, w_dist = self.get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
-
-            # # Log details before backpropagation
-            # print(f"Objective Value: {objective.mean().item()}")
-            # print(f"Objective Components - Total Uncertainty: {total_uncertainty.mean().item()}, "
-            #       f"Aleatoric: {aleatoric_uncertainty.mean().item()}, Epistemic: {epistemic_uncertainty.mean().item()}, "
-            #       f"Distance: {w_dist.mean().item()}")
-
+            # objective = self.simple_get_objective(x, total_uncertainty, aleatoric_uncertainty, epistemic_uncertainty, preds)
+            
             # Backpropagate
             objective.sum(dim=0).backward()
 
-            # # Log the gradient norm of the latent variable z
-            # if self.z.grad is not None:
-            #     grad_norm = self.z.grad.norm().item()
-            #     print(f"Gradient Norm of z: {grad_norm:.4f}")
+            # Debug: Check gradients
+            if self.z.grad is not None:
+                print(f"Step {step_idx}: z.grad.norm = {self.z.grad.norm().item()}")
+            else:
+                print(f"Step {step_idx}: No gradients computed for z.")
 
             self.optimizer.step()
 
-            # # Log entropy values
-            # mean_total_entropy = total_uncertainty.mean().item()
-            # print(f"Step {step_idx+1}/{max_steps} - Mean Total Entropy: {mean_total_entropy:.4f}")
-
-            # Save optimization trajectory
+            # save vectors
             uncertainty_vec[step_idx, :] = total_uncertainty.detach().cpu().numpy()
             aleatoric_vec[step_idx, :] = aleatoric_uncertainty.detach().cpu().numpy()
             epistemic_vec[step_idx, :] = epistemic_uncertainty.detach().cpu().numpy()
-            dist_vec[step_idx, :] = (w_dist.detach().cpu().numpy())
-            cost_vec[step_idx, :] = (objective.detach().cpu().numpy())
-            x_vec.append(x.cpu())  # we dont convert to numpy yet because we need x0 for L1
-            z_vec.append(self.z.detach().cpu().numpy())  # this one is after gradient update while x is before
+            dist_vec[step_idx, :] = w_dist.detach().cpu().numpy()
+            cost_vec[step_idx, :] = objective.detach().cpu().numpy()
+            x_vec.append(x.cpu())  # We don't convert to numpy yet because we need x0 for L1
+            z_vec.append(self.z.detach().cpu().numpy())
+            # this one is after gradient update while x is before
 
-            # Check early stopping conditions
             it_mask = CLUE.update_stopvec(cost_vec, it_mask, step_idx, n_early_stop, min_steps)
 
-        #  Generate final counterfactual
+        #  Generate final (or resulting s sample)
+
         x = self.VAE.regenerate(self.z, grad=False)
         x_vec.append(x)
         x_vec = [i.detach().cpu().numpy() for i in x_vec]  # convert x to numpy
         x_vec = np.stack(x_vec)
         z_vec = np.stack(z_vec)
 
-        # Apply early stopping mask to get final trajectories
+        # Recover correct indexes using mask
         uncertainty_vec, epistemic_vec, aleatoric_vec, dist_vec, cost_vec, z_vec, x_vec = CLUE.apply_stopvec(it_mask,
-                      uncertainty_vec, epistemic_vec, aleatoric_vec, dist_vec, cost_vec, z_vec, x_vec,
-                      n_early_stop)
+                                                                                                             uncertainty_vec, epistemic_vec,
+                                                                                                             aleatoric_vec, dist_vec, cost_vec, z_vec,
+                                                                                                             x_vec,
+                                                                                                             n_early_stop)
         return z_vec, x_vec, uncertainty_vec, epistemic_vec, aleatoric_vec, cost_vec, dist_vec
+
+    def simple_optimise(self, steps=10):
+        for step in range(steps):
+            self.optimizer.zero_grad()
+            # Simple objective: L2 norm of z
+            loss = torch.norm(self.z)
+            loss.backward()
+            self.optimizer.step()
+            print(f"Step {step}, Loss: {loss.item()}, z: {self.z.data}")
+    
+    def gradient_check(self):
+        z = self.z.detach().clone()
+        z.requires_grad = True
+        loss = self.get_objective(...).sum()
+        loss.backward()
+        grad_analytical = self.z.grad.clone()
+
+        # Numerical gradient
+        epsilon = 1e-5
+        z_plus = z + epsilon
+        z_minus = z - epsilon
+        loss_plus = self.get_objective(z_plus, ...).sum()
+        loss_minus = self.get_objective(z_minus, ...).sum()
+        grad_numerical = (loss_plus - loss_minus) / (2 * epsilon)
+
+        print(f"Analytical Gradient: {grad_analytical}")
+        print(f"Numerical Gradient: {grad_numerical}")
 
     @staticmethod
     def update_stopvec(cost_vec, it_mask, step_idx, n_early_stop, min_steps):
-        """Update early stopping mask based on convergence criteria.
-        
-        Args:
-            cost_vec: Objective values history
-            it_mask: Current stopping mask
-            step_idx: Current step
-            n_early_stop: Steps without improvement before stopping
-            min_steps: Minimum steps before stopping
-            
-        Returns:
-            Updated stopping mask
-        """
-        # Check relative and absolute convergence
+        # TODO: can go in a CLUE parent class
         asymptotic_rel = np.abs(cost_vec[step_idx - n_early_stop, :] - cost_vec[step_idx, :]) < cost_vec[0, :] * 1e-2
         asymptotic_abs = np.abs(cost_vec[step_idx - n_early_stop, :] - cost_vec[step_idx, :]) < 1e-3
 
@@ -369,22 +291,6 @@ class CLUE(BaseNet):
 
     @staticmethod
     def apply_stopvec(it_mask, uncertainty_vec, epistemic_vec, aleatoric_vec, dist_vec, cost_vec, z_vec, x_vec, n_early_stop):
-        """Apply early stopping mask to optimization trajectories.
-        
-        Args:
-            it_mask: Stopping mask
-            uncertainty_vec: Uncertainty history
-            epistemic_vec: Epistemic uncertainty history
-            aleatoric_vec: Aleatoric uncertainty history
-            dist_vec: Distance history
-            cost_vec: Objective history
-            z_vec: Latent vector history
-            x_vec: Counterfactual history
-            n_early_stop: Early stopping window
-            
-        Returns:
-            Masked optimization trajectories
-        """
         # uncertainty_vec[step_idx, batch_size]
         it_mask = (it_mask - n_early_stop + 1).astype(int)
         for i in range(uncertainty_vec.shape[1]):
@@ -398,21 +304,8 @@ class CLUE(BaseNet):
                 x_vec[it_mask[i]:, i] = x_vec[it_mask[i], i]
         return uncertainty_vec, epistemic_vec, aleatoric_vec, dist_vec, cost_vec, z_vec, x_vec
 
-
     def sample_explanations(self, n_explanations, init_std=0.15, min_steps=3, max_steps=25,
-                                    n_early_stop=3):
-        """Generate multiple counterfactual explanations with different initializations.
-        
-        Args:
-            n_explanations: Number of explanations to generate
-            init_std: Standard deviation for random initialization
-            min_steps: Minimum optimization steps
-            max_steps: Maximum optimization steps
-            n_early_stop: Early stopping window
-            
-        Returns:
-            Multiple sets of optimization trajectories
-        """
+                            n_early_stop=3):
         # This creates a new first axis and stacks outputs there
         full_x_vec = []
         full_z_vec = []
@@ -423,15 +316,14 @@ class CLUE(BaseNet):
         full_cost_vec = []
 
         for i in range(n_explanations):
-
             self.randomise_z_init(std=init_std)
 
             torch.autograd.set_detect_anomaly(False)
 
             # clue_instance.optimizer = SGD(self.trainable_params, lr=lr, momentum=0.5, nesterov=True)
             z_vec, x_vec, uncertainty_vec, epistemic_vec, aleatoric_vec, cost_vec, dist_vec = self.optimise(
-                                                                    min_steps=min_steps, max_steps=max_steps,
-                                                                    n_early_stop=n_early_stop)
+                min_steps=min_steps, max_steps=max_steps,
+                n_early_stop=n_early_stop)
 
             full_x_vec.append(x_vec)
             full_z_vec.append(z_vec)
@@ -457,37 +349,6 @@ class CLUE(BaseNet):
                        n_early_stop=3, batch_size=256, cond_mask=None, desired_preds=None,
                        distance_metric=None, z_init=None, norm_MNIST=False, flatten_BNN=False, regression=False,
                        prob_BNN=True, cuda=True):
-        """Run CLUE optimization in batches.
-        
-        Args:
-            VAE: Variational autoencoder model
-            BNN: Bayesian neural network model
-            original_x: Original inputs
-            uncertainty_weight: Weight for uncertainty term
-            aleatoric_weight: Weight for aleatoric uncertainty
-            epistemic_weight: Weight for epistemic uncertainty
-            prior_weight: Weight for prior term
-            distance_weight: Weight for distance penalty
-            latent_L2_weight: Weight for L2 penalty
-            prediction_similarity_weight: Weight for prediction similarity
-            lr: Learning rate
-            min_steps: Minimum optimization steps
-            max_steps: Maximum optimization steps
-            n_early_stop: Early stopping window
-            batch_size: Batch size for optimization
-            cond_mask: Mask for conditional generation
-            desired_preds: Target predictions
-            distance_metric: Distance function
-            z_init: Initial latent vectors
-            norm_MNIST: Whether to normalize like MNIST
-            flatten_BNN: Whether to flatten BNN input
-            regression: Whether doing regression
-            prob_BNN: Whether BNN is probabilistic
-            cuda: Whether to use GPU
-            
-        Returns:
-            Optimization trajectories for all batches
-        """
         # This stacks outputs along the first (batch_size) axis
         full_x_vec = []
         full_z_vec = []
@@ -536,3 +397,28 @@ class CLUE(BaseNet):
 
         return full_x_vec, full_z_vec, full_uncertainty_vec, full_aleatoric_vec, full_epistemic_vec, full_dist_vec, full_cost_vec
 
+
+def decompose_std_gauss(mu, sigma, sum_dims=True):
+    # probs (Nsamples, batch_size, output_sims)
+    aleatoric_var = (sigma ** 2).mean(dim=0)
+    epistemic_var = ((mu ** 2).mean(dim=0) - mu.mean(dim=0) ** 2)
+    total_var = aleatoric_var + epistemic_var
+    if sum_dims:
+        aleatoric_var = aleatoric_var.sum(dim=1)
+        epistemic_var = epistemic_var.sum(dim=1)
+        total_var = total_var.sum(dim=1)
+    return torch.square(total_var), torch.square(aleatoric_var), torch.square(epistemic_var)
+
+
+def decompose_entropy_cat(probs, eps=1e-10):
+    # probs (Nsamples, batch_size, classes)
+    posterior_preds = probs.mean(dim=0, keepdim=False)
+    total_entropy = -(posterior_preds * torch.log(posterior_preds + eps)).sum(dim=1, keepdim=False)
+
+    sample_preds_entropy = -(probs * torch.log(probs + eps)).sum(dim=2, keepdim=False)
+    aleatoric_entropy = sample_preds_entropy.mean(dim=0, keepdim=False)
+
+    epistemic_entropy = total_entropy - aleatoric_entropy
+
+    # returns (batch_size)
+    return total_entropy, aleatoric_entropy, epistemic_entropy

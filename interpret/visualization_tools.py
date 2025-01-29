@@ -481,3 +481,5 @@ def CLUE_viewer_ext(Nim, x_init, true_labels, x_explain, o_aleatoric_entropy, o_
     ax[2].set_title('Mask')
 
     plt.show()
+
+    
