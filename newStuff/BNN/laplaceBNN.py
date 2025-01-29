@@ -126,11 +126,11 @@ class BayesianMLP:
         
         x = x.to(self.device)
         with torch.enable_grad():
-            pred_mean, pred_var = self.la(x, link=link, grad=grad)
+            preds = self.la(x, link=link, grad=grad)
         
-        print('pred_var requires_grad: ', pred_var.requires_grad)
+        print('pred_var requires_grad: ', preds.requires_grad)
         
-        return pred_mean, pred_var
+        return preds
 
 def get_device():
     """Get the appropriate device (MPS for Mac, CUDA for NVIDIA, or CPU)."""
