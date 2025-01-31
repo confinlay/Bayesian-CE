@@ -25,7 +25,7 @@ class Classifier(nn.Module):
             nn.ReLU()
         )
         self.classifier = nn.Linear(latent_dim, num_classes)
-
+        self.to(device)
     def forward(self, x):
         z = self.encoder(x)
         y = self.classifier(z)
@@ -75,6 +75,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(16, 1, kernel_size=3, stride=1, padding=1),
             nn.Sigmoid()  # Normalize output to [0,1]
         )
+        self.to(device)
 
     def forward(self, z):
         x = self.fc(z).view(-1, 32, 7, 7)
