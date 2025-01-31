@@ -10,18 +10,21 @@ class Classifier(nn.Module):
     """
     Classifier model which saves the latent representation of the input image for generation later.
     """
-    def __init__(self, latent_dim=32, num_classes=10, device='cpu'):
+    def __init__(self, latent_dim=128, num_classes=10, device='cpu'):
         super(Classifier, self).__init__()
         self.device = device
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),  # 14x14
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),  # 7x7
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),  # 3x3
             nn.Flatten(),
-            nn.Linear(32 * 7 * 7, latent_dim),
+            nn.Linear(128 * 3 * 3, latent_dim),
             nn.ReLU()
         )
         self.classifier = nn.Linear(latent_dim, num_classes)
@@ -109,3 +112,108 @@ class Decoder(nn.Module):
             x_combined.append(self(z_combined))
 
         return x_combined
+
+def train_joint(classifier, decoder, train_loader, num_epochs=5, lr=0.001, lambda_recon=0.5):
+    """Train both classifier and decoder jointly with combined loss"""
+    classifier.to(classifier.device)
+    decoder.to(decoder.device)
+    
+    # Setup optimizers
+    classifier_optimizer = optim.Adam(classifier.parameters(), lr=lr)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
+    
+    # Loss functions
+    classification_criterion = nn.CrossEntropyLoss()
+    reconstruction_criterion = nn.MSELoss()
+    
+    for epoch in range(num_epochs):
+        total_loss = 0.0
+        for images, labels in train_loader:
+            images = images.to(classifier.device)
+            labels = labels.to(classifier.device)
+            
+            # Zero gradients
+            classifier_optimizer.zero_grad()
+            decoder_optimizer.zero_grad()
+            
+            # Forward pass through classifier
+            z, y_pred = classifier(images)
+            
+            # Forward pass through decoder
+            x_reconstructed = decoder(z)
+            
+            # Calculate losses
+            classification_loss = classification_criterion(y_pred, labels)
+            reconstruction_loss = reconstruction_criterion(x_reconstructed, images)
+            
+            # Combined loss
+            total_loss = lambda_recon * reconstruction_loss + (1 - lambda_recon) * classification_loss
+            
+            # Backward pass and optimization
+            total_loss.backward()
+            classifier_optimizer.step()
+            decoder_optimizer.step()
+            
+        print(f"Epoch [{epoch+1}/{num_epochs}], "
+              f"Total Loss: {total_loss.item():.4f}, "
+              f"Classification Loss: {classification_loss.item():.4f}, "
+              f"Reconstruction Loss: {reconstruction_loss.item():.4f}")
+        
+def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001):
+    """Train classifier encoder and decoder to minimize reconstruction loss"""
+    classifier.to(classifier.device)
+    decoder.to(decoder.device)
+    
+    # Setup optimizer
+    params = list(classifier.parameters()) + list(decoder.parameters()) 
+    optimizer = optim.Adam(params, lr=lr)
+    
+    # Loss function
+    reconstruction_criterion = nn.MSELoss()
+    
+    for epoch in range(num_epochs):
+        total_loss = 0.0
+        for images, _ in train_loader:
+            images = images.to(classifier.device)
+            
+            # Zero gradients
+            optimizer.zero_grad()
+            
+            # Forward pass
+            z, _ = classifier(images)  # Get latent representation from classifier
+            reconstructed = decoder(z)
+            
+            # Calculate reconstruction loss
+            loss = reconstruction_criterion(reconstructed, images)
+            
+            # Backward pass and optimize
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += loss.item()
+            
+        avg_loss = total_loss / len(train_loader)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Average Reconstruction Loss: {avg_loss:.4f}")
+
+def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001):
+    """Train only the classification layer, keeping encoder weights frozen"""
+    classifier.to(classifier.device)
+    # Freeze encoder weights
+    for param in classifier.encoder.parameters():
+        param.requires_grad = False
+    # Only optimize classifier layer
+    optimizer = optim.Adam(classifier.classifier.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss()
+    
+    for epoch in range(num_epochs):
+        for images, labels in train_loader:
+            images, labels = images.to(classifier.device), labels.to(classifier.device)
+            optimizer.zero_grad()
+            _, y_pred = classifier(images)
+            loss = criterion(y_pred, labels)
+            loss.backward()
+            optimizer.step()
+            
+    # Unfreeze encoder for future use
+    for param in classifier.encoder.parameters():
+        param.requires_grad = True
