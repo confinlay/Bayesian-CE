@@ -195,6 +195,9 @@ def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001)
         avg_loss = total_loss / len(train_loader)
         print(f"Epoch [{epoch+1}/{num_epochs}], Average Reconstruction Loss: {avg_loss:.4f}")
 
+        # Print progress similar to train_classifier
+        print(f"Epoch [{epoch+1}/{num_epochs}], Total Loss: {total_loss:.4f}")
+
 def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001):
     """Train only the classification layer, keeping encoder weights frozen"""
     classifier.to(classifier.device)
