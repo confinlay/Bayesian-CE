@@ -69,6 +69,10 @@ class SVAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
     
+    def decode(self, z):
+        """Decode latent code to get reconstructed image"""
+        return self.decoder(z)
+    
     def forward(self, x):
         """Forward pass through the entire model"""
         # Encode
