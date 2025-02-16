@@ -84,8 +84,8 @@ class SVAE(nn.Module):
         # Decode
         x_recon = self.decoder(z)
         
-        # Classify
-        y_pred = self.classifier(z)
+        # Classify using mu (non-reparameterized latent)
+        y_pred = self.classifier(mu)
         
         return x_recon, y_pred, mu, log_var
     

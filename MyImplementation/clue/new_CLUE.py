@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class SimpleCLUE:
+class NewCLUE:
     """
     A simplified version of the CLUE algorithm that optimizes a single latent point
     directly in the intermediate feature space (latent space) produced, for example, by the
@@ -10,15 +10,17 @@ class SimpleCLUE:
     classifier's predictive uncertainty (via softmax entropy) while keeping the change
     from the original latent code minimal.
 
+    This version accepts a classification layer, and directly optimises the latent code based on
+    the uncertainty of the classifier's predictions on the latent code. No need for a decoder.
+
     The loss being minimized is:
         L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
     """
 
-    def __init__(self, model, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu'):
+    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu'):
         """
         Args:
-            classifier: A classifier model (from regene_models.py) containing a classifier head.
-                        It is expected that one can call classifier.classifier(z) where z is the latent code.
+            classifier: A classification layer which transforms the latent code into a logit.
             z0: The initial latent code (array-like or torch.Tensor) for the data point to explain.
                 Typically obtained from the encoder (shape: [1, latent_dim]).
             uncertainty_weight: Weight for the uncertainty (entropy) term.
@@ -36,7 +38,7 @@ class SimpleCLUE:
             self.z0 = self.z0.unsqueeze(0)
         # The latent variable to be optimized is initialized to z0
         self.z = torch.nn.Parameter(self.z0.clone())
-        self.model = model.to(self.device)
+        self.classifier = classifier.to(self.device)
         self.uncertainty_weight = uncertainty_weight
         self.distance_weight = distance_weight
         self.lr = lr
@@ -51,7 +53,7 @@ class SimpleCLUE:
             A scalar tensor representing the uncertainty.
         """
         # Directly obtain prediction logits from the classifier head.
-        logits = self.model.classifier(self.z)
+        logits = self.classifier(self.z)      
         probs = torch.nn.functional.softmax(logits, dim=1)
         entropy = -(probs * torch.log(probs + 1e-10)).sum(dim=1)
         return entropy

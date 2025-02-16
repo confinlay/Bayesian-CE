@@ -9,6 +9,9 @@ class SimpleCLUE:
     generates an image from the current latent code which is then fed into a classifier.
     The objective is to increase the classifier's predictive uncertainty (via softmax entropy)
     while keeping the latent code close to its original value.
+
+    Thie version requires two models. The VAE decodes the latent point at each step so that 
+    it can be fed into the classifier.
     
     The loss being minimized is:
         L(z) = uncertainty_weight * H(y|x_generated) + distance_weight * ||z - z0||_2
