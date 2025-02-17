@@ -16,7 +16,7 @@ import copy
 
 def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset, device,
                          burn_in, sim_steps, N_saves, resample_its, resample_prior_its,
-                         re_burn, flat_ims=False, nb_its_dev=1):
+                         re_burn, flat_ims=False, nb_its_dev=1, model_saves_dir=None):
     """
     Train a Bayesian Neural Network for classification tasks
     
@@ -38,8 +38,8 @@ def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset,
         nb_its_dev: How often to evaluate on validation set
     """
     # Create directories for saving models and results
-    models_dir = name + '_models'
-    results_dir = name + '_results'
+    models_dir = os.path.join(model_saves_dir, name + '_models')
+    results_dir = os.path.join(model_saves_dir, name + '_results')
     os.makedirs(models_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
@@ -167,8 +167,8 @@ def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset,
     # Plot cross entropy loss
     plt.figure(dpi=100)
     fig, ax1 = plt.subplots()
-    ax1.plot(np.clip(cost_train, a_min=-5, a_max=5), 'r--')
-    ax1.plot(range(0, nb_epochs, nb_its_dev), np.clip(cost_dev[::nb_its_dev], a_min=-5, a_max=5), 'b-')
+    ax1.plot(cost_train, 'r--')
+    ax1.plot(cost_dev, 'b-')
     ax1.set_ylabel('Cross Entropy')
     plt.xlabel('epoch')
     plt.grid(True, which='major')
@@ -187,16 +187,19 @@ def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset,
     # Plot classification error rate
     plt.figure(dpi=100)
     fig2, ax2 = plt.subplots()
-    ax2.set_ylabel('% error')
-    ax2.semilogy(range(0, nb_epochs, nb_its_dev), err_dev[::nb_its_dev], 'b-')
-    ax2.semilogy(err_train, 'r--')
-    ax2.set_ylim(bottom=0.01, top=1.0)
-    ax2.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    ax2.yaxis.set_major_locator(matplotlib.ticker.LogLocator(numticks=10))
-    ax2.grid(True, which='both', linestyle='-', alpha=0.2)
+    ax2.plot(err_train, 'r--')        # Plot training error first
+    ax2.plot(err_dev, 'b-')           # Plot validation error
+    ax2.set_ylabel('Error Rate')
     plt.xlabel('epoch')
-    lgd = plt.legend(['test error', 'train error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
+    # Set y-axis limits based on data range with some padding
+    ymin, ymax = min(min(err_train), min(err_dev)), max(max(err_train), max(err_dev))
+    padding = (ymax - ymin) * 0.1  # 10% padding
+    ax2.set_ylim(ymin - padding, ymax + padding)
+    lgd = plt.legend(['train error', 'test error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
     ax = plt.gca()
+    plt.title('classification errors')
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                  ax.get_xticklabels() + ax.get_yticklabels()):
         item.set_fontsize(textsize)
@@ -209,7 +212,7 @@ def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset,
 
 
 def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
-                  lr=0.001, patience=5, nb_its_dev=1):
+                  lr=0.001, patience=5, nb_its_dev=1, model_saves_dir=None):
     """
     Train a deterministic backbone network before BNN last layer training.
     
@@ -226,8 +229,8 @@ def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
         nb_its_dev: How often to evaluate on validation set
     """
     # Create directories for saving models and results
-    models_dir = name + '_models'
-    results_dir = name + '_results'
+    models_dir = os.path.join(model_saves_dir, name + '_models')
+    results_dir = os.path.join(model_saves_dir, name + '_results')
     os.makedirs(models_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
@@ -367,8 +370,8 @@ def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
     # Plot cross entropy loss
     plt.figure(dpi=100)
     fig, ax1 = plt.subplots()
-    ax1.plot(np.clip(cost_train[:i+1], a_min=-5, a_max=5), 'r--')
-    ax1.plot(range(0, i+1, nb_its_dev), np.clip(cost_dev[:i+1:nb_its_dev], a_min=-5, a_max=5), 'b-')
+    ax1.plot(cost_train, 'r--')  # Remove clip to see actual values
+    ax1.plot(cost_dev, 'b-')     # Plot full array, not just every nb_its_dev
     ax1.set_ylabel('Cross Entropy')
     plt.xlabel('epoch')
     plt.grid(True, which='major')

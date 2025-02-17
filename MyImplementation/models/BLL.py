@@ -163,7 +163,7 @@ class BayesianLastLayerCat(nn.Module):
         with torch.no_grad():
             features = self.extract_features(x)
             logits = self.last_layer(features)
-            cost = F.cross_entropy(logits, y, reduction='mean') * self.N_train
+            cost = F.cross_entropy(logits, y, reduction='mean')
             _, predicted = logits.max(1)
             err = (predicted != y).float().mean().item()
             probs = F.softmax(logits, dim=1)
