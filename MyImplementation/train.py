@@ -9,22 +9,25 @@ import sys
 from torchvision.utils import save_image, make_grid
 from numpy.random import normal
 import numpy as np
+import torch.nn as nn
+import torch.optim as optim
+import copy
 
 
-def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset, cuda,
+def train_BLL_classification(net, name, batch_size, nb_epochs, trainset, valset, device,
                          burn_in, sim_steps, N_saves, resample_its, resample_prior_its,
                          re_burn, flat_ims=False, nb_its_dev=1):
     """
     Train a Bayesian Neural Network for classification tasks
     
     Args:
-        net: The BNN model to train
+        net: The BLL model to train
         name: Name prefix for saving models and results
         batch_size: Mini-batch size for training
         nb_epochs: Number of training epochs
         trainset: Training dataset
         valset: Validation dataset
-        cuda: Whether to use GPU acceleration
+        device: Device to run the training on
         burn_in: Number of burn-in iterations for MCMC
         sim_steps: How often to save model samples
         N_saves: Maximum number of model samples to save
@@ -41,7 +44,7 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     os.makedirs(results_dir, exist_ok=True)
 
     # Set up data loaders with appropriate settings for CPU/GPU
-    if cuda:
+    if device == torch.device('cuda'):
         trainloader = torch.utils.data.DataLoader(
             trainset, 
             batch_size=batch_size, 
@@ -62,8 +65,8 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
         )
 
     else:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
-        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     # Initialize training variables
     cprint('c', '\nNetwork:')
@@ -83,12 +86,15 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     # Main training loop
     tic0 = time.time()
     for i in range(epoch, nb_epochs):
-        net.set_mode_train(True)
+        net.train()
         tic = time.time()
         nb_samples = 0
 
         # Training pass
         for x, y in trainloader:
+            # Move data to device
+            x, y = x.to(device), y.to(device)
+            
             # Flatten images if requested
             if flat_ims:
                 x = x.view(x.shape[0], -1)
@@ -120,11 +126,14 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
         if i % nb_its_dev == 0:
             nb_samples = 0
             for j, (x, y) in enumerate(valloader):
+                # Move data to device
+                x, y = x.to(device), y.to(device)
+                
                 if flat_ims:
                     x = x.view(x.shape[0], -1)
 
                 # Get validation metrics
-                cost, err, probs = net.eval(x, y)
+                cost, err, probs = net.evaluate(x, y)
 
                 cost_dev[i] += cost
                 err_dev[i] += err
@@ -138,7 +147,7 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
             cprint('g', '    Jdev = %f, err = %f\n' % (cost_dev[i], err_dev[i]))
             if err_dev[i] < best_err:
                 best_err = err_dev[i]
-                cprint('b', 'best test error')
+                cprint('b', 'best validation error')
 
     # Calculate and print total runtime
     toc0 = time.time()
@@ -146,7 +155,10 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     cprint('r', '   average time: %f seconds\n' % runtime_per_it)
 
     # Save final model weights
-    net.save_weights(models_dir + '/state_dicts.pkl')
+    rand_id = np.random.randint(0, 10000)
+    save_path = f'{models_dir}/BLL_checkpoint_{rand_id}.pth'
+    net.save_checkpoint(save_path)
+    print(f'Saved final model to: {save_path}')
 
     # Plot training curves
     textsize = 15
@@ -194,6 +206,184 @@ def train_BNN_classification(net, name, batch_size, nb_epochs, trainset, valset,
     plt.close()
 
     return cost_train, cost_dev, err_train, err_dev
+
+
+def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
+                  lr=0.001, patience=5, nb_its_dev=1):
+    """
+    Train a deterministic backbone network before BNN last layer training.
+    
+    Args:
+        net: The backbone model to train
+        name: Name prefix for saving models and results
+        batch_size: Mini-batch size for training
+        nb_epochs: Number of training epochs
+        trainset: Training dataset
+        valset: Validation dataset
+        device: Device to run the training on
+        lr: Initial learning rate
+        patience: Early stopping patience
+        nb_its_dev: How often to evaluate on validation set
+    """
+    # Create directories for saving models and results
+    models_dir = name + '_models'
+    results_dir = name + '_results'
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Set up data loaders
+    if device == torch.device('cuda'):
+        trainloader = torch.utils.data.DataLoader(
+            trainset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+        valloader = torch.utils.data.DataLoader(
+            valset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+    else:
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    # Initialize training components
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(net.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
+
+    # Initialize tracking variables
+    cprint('c', '\nBackbone Network:')
+    cost_train = np.zeros(nb_epochs)
+    err_train = np.zeros(nb_epochs)
+    cost_dev = np.zeros(nb_epochs)
+    err_dev = np.zeros(nb_epochs)
+    best_err = float('inf')
+    best_state = None
+    patience_counter = 0
+
+    # Main training loop
+    tic0 = time.time()
+    for i in range(nb_epochs):
+        net.train()
+        tic = time.time()
+        nb_samples = 0
+
+        # Training pass
+        for x, y in trainloader:
+            # Move data to device
+            x, y = x.to(device), y.to(device)
+            
+            optimizer.zero_grad()
+            # Handle tuple output from backbone
+            _, outputs = net(x)  # Unpack features and logits
+
+            loss = criterion(outputs, y)
+            loss.backward()
+            optimizer.step()
+
+            # Track metrics
+            _, predicted = outputs.max(1)
+            err = (predicted != y).float().mean().item()
+            
+            cost_train[i] += loss.item()
+            err_train[i] += err
+            nb_samples += len(x)
+
+        # Calculate epoch averages
+        cost_train[i] /= nb_samples
+        err_train[i] /= nb_samples
+        toc = time.time()
+
+        # Print training progress
+        print("it %d/%d, Jtr = %f, err = %f, " % (i, nb_epochs, cost_train[i], err_train[i]), end="")
+        cprint('r', '   time: %f seconds\n' % (toc - tic))
+
+        # Validation pass
+        if i % nb_its_dev == 0:
+            net.eval()
+            nb_samples = 0
+            with torch.no_grad():
+                for x, y in valloader:
+                    # Move data to device
+                    x, y = x.to(device), y.to(device)
+                    
+                    # Handle tuple output from backbone
+                    _, outputs = net(x)  # Unpack features and logits
+                    loss = criterion(outputs, y)
+                    _, predicted = outputs.max(1)
+                    err = (predicted != y).float().mean().item()
+
+                    cost_dev[i] += loss.item()
+                    err_dev[i] += err
+                    nb_samples += len(x)
+
+            # Calculate validation averages
+            cost_dev[i] /= nb_samples
+            err_dev[i] /= nb_samples
+
+            # Learning rate scheduling
+            scheduler.step(cost_dev[i])
+
+            # Print validation metrics
+            cprint('g', '    Jdev = %f, err = %f\n' % (cost_dev[i], err_dev[i]))
+            
+            # Track best model and early stopping
+            if err_dev[i] < best_err:
+                best_err = err_dev[i]
+                best_state = copy.deepcopy(net.state_dict())
+                patience_counter = 0
+                cprint('b', 'best validation error')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    cprint('y', f'\nEarly stopping triggered after {i+1} epochs')
+                    break
+
+    # Calculate and print total runtime
+    toc0 = time.time()
+    runtime_per_it = (toc0 - tic0) / float(i + 1)
+    cprint('r', '   average time: %f seconds\n' % runtime_per_it)
+
+    # Restore best model
+    net.load_state_dict(best_state)
+    rand_id = np.random.randint(0, 10000)
+    save_path = f'{models_dir}/backbone_best_{rand_id}.pt'
+    torch.save(best_state, save_path)
+    print(f'Saved best model to: {save_path}')
+
+    # Plot training curves (similar to BNN plotting code)
+    textsize = 15
+    marker = 5
+
+    # Plot cross entropy loss
+    plt.figure(dpi=100)
+    fig, ax1 = plt.subplots()
+    ax1.plot(np.clip(cost_train[:i+1], a_min=-5, a_max=5), 'r--')
+    ax1.plot(range(0, i+1, nb_its_dev), np.clip(cost_dev[:i+1:nb_its_dev], a_min=-5, a_max=5), 'b-')
+    ax1.set_ylabel('Cross Entropy')
+    plt.xlabel('epoch')
+    plt.grid(True, which='major')
+    plt.grid(True, which='minor')
+    lgd = plt.legend(['train error', 'test error'], markerscale=marker, prop={'size': textsize, 'weight': 'normal'})
+    ax = plt.gca()
+    plt.title('backbone training costs')
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(textsize)
+        item.set_weight('normal')
+    plt.savefig(results_dir + '/backbone_cost.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+    return cost_train[:i+1], cost_dev[:i+1], err_train[:i+1], err_dev[:i+1], best_err
 
 
 def cprint(color, text, **kwargs):
