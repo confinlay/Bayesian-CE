@@ -146,4 +146,18 @@ class BayesianLastLayerVI(nn.Module):
         self.last_layer.load_state_dict(checkpoint['last_layer_state'])
         self.best_val_loss.copy_(checkpoint['best_val_loss'])
         
-        print(f" [load_checkpoint] Loaded checkpoint from {path}") 
+        print(f" [load_checkpoint] Loaded checkpoint from {path}")
+
+    @torch.no_grad()
+    def sample_predict_z(self, z, Nsamples=None):
+        """Match BLL's interface for CLUE compatibility."""
+        self.train()  # Keep in train mode for sampling
+        outputs = []
+        n_samples = Nsamples if Nsamples is not None else 10
+        
+        for _ in range(n_samples):
+            logits = self.last_layer(z)
+            probs = F.softmax(logits, dim=1)
+            outputs.append(probs)
+        
+        return torch.stack(outputs, dim=0)  # [n_samples, batch_size, n_classes] 

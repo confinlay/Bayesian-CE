@@ -17,7 +17,7 @@ class NewCLUE:
         L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
     """
 
-    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu'):
+    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', bayesian=False):
         """
         Args:
             classifier: A classification layer which transforms the latent code into a logit.
@@ -43,6 +43,8 @@ class NewCLUE:
         self.distance_weight = distance_weight
         self.lr = lr
         self.optimizer = torch.optim.Adam([self.z], lr=lr)
+        self.bayesian = bayesian
+
 
     def predict_uncertainty(self):
         """
@@ -58,6 +60,26 @@ class NewCLUE:
         entropy = -(probs * torch.log(probs + 1e-10)).sum(dim=1)
         return entropy
 
+    def predict_uncertainty_bayesian(self, num_samples=None):
+        """Compute total, aleatoric and epistemic uncertainty from Bayesian samples."""
+        # Get samples - these are already probabilities from BLL's sample_predict_z
+        probs = self.classifier.sample_predict_z(self.z, num_samples)  # [num_samples, 1, num_classes]
+        
+        # No need to apply softmax since BLL already returns probabilities
+        # probs = torch.nn.functional.softmax(samples, dim=2)  # Remove this line
+        
+        # Compute decomposed uncertainties
+        posterior_preds = probs.mean(dim=0, keepdim=False)  # [1, num_classes]
+        total_entropy = -(posterior_preds * torch.log(posterior_preds + 1e-10)).sum(dim=1)
+        
+        sample_preds_entropy = -(probs * torch.log(probs + 1e-10)).sum(dim=2)
+        aleatoric_entropy = sample_preds_entropy.mean(dim=0)
+        
+        epistemic_entropy = total_entropy - aleatoric_entropy
+        
+        return total_entropy, aleatoric_entropy, epistemic_entropy
+
+
     def optimize(self, steps=25):
         """
         Optimizes the latent code by minimizing the objective:
@@ -69,12 +91,20 @@ class NewCLUE:
         Returns:
             The optimized latent code (as a torch.Tensor with no gradient).
         """
+        
         for step in range(steps):
             self.optimizer.zero_grad()
-            entropy = self.predict_uncertainty()
+
+            if self.bayesian:
+                total_entropy, aleatoric_entropy, epistemic_entropy = self.predict_uncertainty_bayesian()
+            else:
+                total_entropy = self.predict_uncertainty()
+                aleatoric_entropy = total_entropy  # For non-Bayesian case, no uncertainty decomposition
+                epistemic_entropy = torch.tensor(0.0).to(self.device)
+                
             distance = torch.norm(self.z - self.z0, p=2)
-            loss = self.uncertainty_weight * entropy + self.distance_weight * distance
+            loss = self.uncertainty_weight * total_entropy + self.distance_weight * distance
             loss.backward()
             self.optimizer.step()
-            print(f"Step {step:02d}: Loss: {loss.item():.4f}, Entropy: {entropy.item():.4f}, Distance: {distance.item():.4f}")
+            print(f"Step {step:02d}: Loss: {loss.item():.4f}, Total Entropy: {total_entropy.item():.4f}, Epistemic Entropy: {epistemic_entropy.item():.4f}, Aleatoric Entropy: {aleatoric_entropy.item():.4f}, Distance: {distance.item():.4f}")
         return self.z.detach()

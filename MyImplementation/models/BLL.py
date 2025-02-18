@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 from sampler import H_SA_SGHMC
+import random
 
 class BayesianLastLayerCat(nn.Module):
     """
@@ -183,7 +184,6 @@ class BayesianLastLayerCat(nn.Module):
         
         print(f" [save_sampled_net] Ensemble size = {len(self.ensemble_last_layers)}")
     
-    @torch.no_grad()
     def sample_predict(self, x, Nsamples=None):
         """
         Make predictions using all ensemble members.
@@ -216,8 +216,46 @@ class BayesianLastLayerCat(nn.Module):
         prob_stack = torch.stack(all_probs, dim=0)
         
         return prob_stack
+    
+    def sample_predict_z(self, z, Nsamples=None):
+        """
+        Make predictions using all ensemble members.
+        
+        Args:
+            z: Input tensor - latent code
+            Nsamples: Number of samples to use (if None, uses all samples)
+        
+        Returns:
+            prob_stack: Tensor of shape [n_ensemble, batch_size, n_classes]
+                       containing softmax probabilities from each ensemble member
+        """
+        self.eval()
+        features = z
+        
+        # Determine how many samples to use
+        if Nsamples is not None:
+            ensemble = self.ensemble_last_layers[:Nsamples]
+        else:
+            ensemble = self.ensemble_last_layers
+        
+        # Collect predictions from all ensemble members
+        all_probs = []
+        for i, last_layer in enumerate(ensemble):
+            logits = last_layer(features)
+            probs = F.softmax(logits, dim=1)
+            # # Debug print
+            # if i == 0:  # Print first sample
+            #     print(f"Sample 0 probs: {probs}")
+            # elif i == len(ensemble) - 1:
+            #     print(f"Sample {i} probs: {probs}")
+            all_probs.append(probs)
+        
+        # Stack and print variance
+        prob_stack = torch.stack(all_probs, dim=0)
+        # print(f"Ensemble variance: {prob_stack.var(dim=0).mean().item()}")
+        
+        return prob_stack
 
-    @torch.no_grad()
     def predict_with_uncertainty(self, x):
         """
         Make predictions using the entire ensemble.
@@ -320,3 +358,7 @@ class BayesianLastLayerCat(nn.Module):
         print(f" [save_weights] Saved model state and {len(self.ensemble_last_layers)} ensemble samples to {path}")
 
     
+    def shuffle_ensemble(self):
+        """Shuffle the ensemble of last layers."""
+        random.shuffle(self.ensemble_last_layers)
+        print(f" [shuffle_ensemble] Shuffled ensemble of {len(self.ensemble_last_layers)} last layers")
