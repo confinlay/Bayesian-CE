@@ -389,6 +389,198 @@ def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
     return cost_train[:i+1], cost_dev[:i+1], err_train[:i+1], err_dev[:i+1], best_err
 
 
+def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, valset, device,
+                              lr=1e-3, patience=5, nb_its_dev=1, model_saves_dir=None):
+    """
+    Train a Bayesian Last Layer using Variational Inference for classification tasks.
+    
+    Args:
+        net: The BLL_VI model to train
+        name: Name prefix for saving models and results
+        batch_size: Mini-batch size for training
+        nb_epochs: Number of training epochs
+        trainset: Training dataset
+        valset: Validation dataset
+        device: Device to run the training on
+        lr: Initial learning rate
+        patience: Early stopping patience
+        nb_its_dev: How often to evaluate on validation set
+        model_saves_dir: Directory to save models and results
+    """
+    # Create directories for saving models and results
+    models_dir = os.path.join(model_saves_dir, name + '_models')
+    results_dir = os.path.join(model_saves_dir, name + '_results')
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Set up data loaders
+    if device == torch.device('cuda'):
+        trainloader = torch.utils.data.DataLoader(
+            trainset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+        valloader = torch.utils.data.DataLoader(
+            valset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            pin_memory=True,
+            num_workers=3,
+            persistent_workers=True,
+            multiprocessing_context='fork'
+        )
+    else:
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    # Initialize optimizer
+    optimizer = torch.optim.Adam(net.last_layer.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
+
+    # Initialize tracking variables
+    cprint('c', '\nBayesian Last Layer (VI):')
+    cost_train = np.zeros(nb_epochs)
+    err_train = np.zeros(nb_epochs)
+    kl_train = np.zeros(nb_epochs)
+    cost_dev = np.zeros(nb_epochs)
+    err_dev = np.zeros(nb_epochs)
+    best_err = float('inf')
+    best_state = None
+    patience_counter = 0
+
+    # Main training loop
+    tic0 = time.time()
+    for i in range(nb_epochs):
+        net.train()
+        tic = time.time()
+        nb_samples = 0
+
+        # Training pass
+        for x, y in trainloader:
+            # Move data to device
+            x, y = x.to(device), y.to(device)
+            
+            optimizer.zero_grad()
+            # Get loss tensor and metrics
+            loss, err, ce_loss, kl_div = net.fit(x, y)
+            # Backward pass on the loss tensor
+            loss.backward()
+            optimizer.step()
+
+            # Track metrics
+            cost_train[i] += ce_loss  # Already detached in fit()
+            err_train[i] += err
+            kl_train[i] += kl_div
+            nb_samples += len(x)
+
+        # Calculate epoch averages
+        cost_train[i] /= nb_samples
+        err_train[i] /= nb_samples
+        kl_train[i] /= len(trainloader)
+        toc = time.time()
+
+        # Print training progress
+        print("it %d/%d, Jtr = %.3f, err = %.3f, KL = %.3f, " % 
+              (i, nb_epochs, cost_train[i], err_train[i], kl_train[i]), end="")
+        cprint('r', '   time: %f seconds\n' % (toc - tic))
+
+        # Validation pass
+        if i % nb_its_dev == 0:
+            net.eval()
+            nb_samples = 0
+            with torch.no_grad():
+                for x, y in valloader:
+                    # Move data to device
+                    x, y = x.to(device), y.to(device)
+                    
+                    # Get validation metrics with uncertainty
+                    cost, err, probs, uncertainty = net.evaluate(x, y)
+                    
+                    cost_dev[i] += cost
+                    err_dev[i] += err
+                    nb_samples += len(x)
+
+            # Calculate validation averages
+            cost_dev[i] /= nb_samples
+            err_dev[i] /= nb_samples
+
+            # Learning rate scheduling
+            scheduler.step(cost_dev[i])
+
+            # Print validation metrics
+            cprint('g', '    Jdev = %.3f, err = %.3f\n' % (cost_dev[i], err_dev[i]))
+            
+            # Track best model and early stopping
+            if err_dev[i] < best_err:
+                best_err = err_dev[i]
+                best_state = copy.deepcopy(net.state_dict())
+                patience_counter = 0
+                cprint('b', 'best validation error')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    cprint('y', f'\nEarly stopping triggered after {i+1} epochs')
+                    break
+
+    # Calculate and print total runtime
+    toc0 = time.time()
+    runtime_per_it = (toc0 - tic0) / float(i + 1)
+    cprint('r', '   average time: %f seconds\n' % runtime_per_it)
+
+    # Restore best model
+    net.load_state_dict(best_state)
+    rand_id = np.random.randint(0, 10000)
+    save_path = f'{models_dir}/BLL_VI_best_{rand_id}.pt'
+    net.save_checkpoint(save_path)
+    print(f'Saved best model to: {save_path}')
+
+    # Plot training curves
+    textsize = 15
+    marker = 5
+
+    # Plot cross entropy loss
+    plt.figure(dpi=100)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    
+    # Loss plot
+    ax1.plot(cost_train, 'r--')
+    ax1.plot(cost_dev, 'b-')
+    ax1.set_ylabel('Cross Entropy')
+    ax1.set_xlabel('epoch')
+    ax1.grid(True)
+    ax1.legend(['train', 'validation'])
+    ax1.set_title('Classification Loss')
+    
+    # KL divergence plot
+    ax2.plot(kl_train, 'g-')
+    ax2.set_ylabel('KL Divergence')
+    ax2.set_xlabel('epoch')
+    ax2.grid(True)
+    ax2.set_title('KL Divergence')
+    
+    plt.tight_layout()
+    plt.savefig(results_dir + '/vi_training.png')
+    plt.close()
+
+    # Plot classification error rate
+    plt.figure(dpi=100)
+    plt.plot(err_train, 'r--')
+    plt.plot(err_dev, 'b-')
+    plt.ylabel('Error Rate')
+    plt.xlabel('epoch')
+    plt.grid(True)
+    plt.legend(['train error', 'validation error'])
+    plt.title('Classification Errors')
+    plt.savefig(results_dir + '/vi_error.png')
+    plt.close()
+
+    return cost_train[:i+1], cost_dev[:i+1], err_train[:i+1], err_dev[:i+1], kl_train[:i+1]
+
+
 def cprint(color, text, **kwargs):
     if color[0] == '*':
         pre_code = '1;'
