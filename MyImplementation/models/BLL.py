@@ -79,21 +79,24 @@ class BayesianLastLayerCat(nn.Module):
 
     @torch.no_grad()
     def extract_features(self, x):
-        """Extract features from the frozen backbone.
-           Returns only the features portion.
-        """
+        """Extract features from the frozen backbone."""
         self.backbone.eval()
-        features, _ = self.backbone(x.to(self.device))
-        return features
+        with torch.no_grad():
+            output = self.backbone(x.to(self.device))
+            # Handle both single tensor and tuple outputs
+            if isinstance(output, tuple):
+                features, _ = output
+            else:
+                features = output
+            return features
 
     def fit(self, x, y, burn_in=False, resample_momentum=False, resample_prior=False):
         """Single SGHMC update step."""
         self.train()
-        x, y = x.to(self.device), y.long().to(self.device)
+        # Ensure y is on correct device and type
+        y = y.long().to(self.device)
         
-        # Extract features once for efficiency
-        with torch.no_grad():
-            features = self.extract_features(x)
+        features = self.extract_features(x)
         
         # Forward pass through last layer using extracted features
         self.optimizer.zero_grad()
@@ -163,9 +166,9 @@ class BayesianLastLayerCat(nn.Module):
         with torch.no_grad():
             features = self.extract_features(x)
             logits = self.last_layer(features)
-            cost = F.cross_entropy(logits, y, reduction='mean')
+            cost = F.cross_entropy(logits, y, reduction='sum')
             _, predicted = logits.max(1)
-            err = (predicted != y).float().mean().item()
+            err = (predicted != y).sum().item()
             probs = F.softmax(logits, dim=1)
         return cost.item(), err, probs
 
