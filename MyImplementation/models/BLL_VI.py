@@ -148,16 +148,92 @@ class BayesianLastLayerVI(nn.Module):
         
         print(f" [load_checkpoint] Loaded checkpoint from {path}")
 
-    @torch.no_grad()
-    def sample_predict_z(self, z, Nsamples=None):
-        """Match BLL's interface for CLUE compatibility."""
-        self.train()  # Keep in train mode for sampling
-        outputs = []
-        n_samples = Nsamples if Nsamples is not None else 10
+    def sample_predict(self, x, Nsamples=None):
+        """
+        Make predictions using multiple forward passes.
         
+        Args:
+            x: Input tensor
+            Nsamples: Number of samples to use (if None, uses 10 samples)
+        
+        Returns:
+            prob_stack: Tensor of shape [n_samples, batch_size, n_classes]
+                       containing softmax probabilities from each forward pass
+        """
+        self.eval()
+        features = self.extract_features(x)
+        
+        # Determine number of samples
+        n_samples = 100 if Nsamples is None else Nsamples
+        
+        # Collect predictions from multiple forward passes
+        all_probs = []
         for _ in range(n_samples):
-            logits = self.last_layer(z)
+            logits = self.last_layer(features)
             probs = F.softmax(logits, dim=1)
-            outputs.append(probs)
+            all_probs.append(probs)
         
-        return torch.stack(outputs, dim=0)  # [n_samples, batch_size, n_classes] 
+        # Stack into [n_samples, batch_size, n_classes]
+        prob_stack = torch.stack(all_probs, dim=0)
+        
+        return prob_stack
+
+    def sample_predict_z(self, z, Nsamples=None):
+        """
+        Make predictions using multiple forward passes.
+        
+        Args:
+            z: Input tensor - latent code
+            Nsamples: Number of samples to use (if None, uses 10 samples)
+        
+        Returns:
+            prob_stack: Tensor of shape [n_samples, batch_size, n_classes]
+                       containing softmax probabilities from each forward pass
+        """
+        self.eval()
+        features = z
+        
+        # Determine number of samples
+        n_samples = 100 if Nsamples is None else Nsamples
+        
+        # Collect predictions from multiple forward passes
+        all_probs = []
+        for _ in range(n_samples):
+            logits = self.last_layer(features)
+            probs = F.softmax(logits, dim=1)
+            all_probs.append(probs)
+        
+        # Stack into [n_samples, batch_size, n_classes]
+        prob_stack = torch.stack(all_probs, dim=0)
+        
+        return prob_stack
+    
+    def predict_with_uncertainty(self, x):
+        """
+        Make predictions using the entire ensemble.
+        Returns:
+            mean_probs: Average probabilities across ensemble
+            uncertainty: Dictionary containing total, aleatoric and epistemic uncertainty
+        """
+        self.eval()
+            
+        # Stack into [n_ensemble, batch_size, n_classes]
+        prob_stack = self.sample_predict(x)
+        
+        # Compute mean probabilities
+        mean_probs = prob_stack.mean(dim=0)
+        
+        # Compute uncertainty decomposition (total, aleatoric, epistemic)
+        eps = 1e-10
+        total_entropy = -(mean_probs * torch.log(mean_probs + eps)).sum(dim=1)
+        
+        sample_entropy = -(prob_stack * torch.log(prob_stack + eps)).sum(dim=2)
+        aleatoric_entropy = sample_entropy.mean(dim=0)
+        
+        epistemic_entropy = total_entropy - aleatoric_entropy
+        
+        return mean_probs, {
+            'total_entropy': total_entropy,
+            'aleatoric_entropy': aleatoric_entropy, 
+            'epistemic_entropy': epistemic_entropy
+        }

@@ -17,7 +17,7 @@ class NewCLUE:
         L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
     """
 
-    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', bayesian=False):
+    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', bayesian=False, verbose=True):
         """
         Args:
             classifier: A classification layer which transforms the latent code into a logit.
@@ -44,7 +44,7 @@ class NewCLUE:
         self.lr = lr
         self.optimizer = torch.optim.Adam([self.z], lr=lr)
         self.bayesian = bayesian
-
+        self.verbose = verbose
 
     def predict_uncertainty(self):
         """
@@ -106,5 +106,6 @@ class NewCLUE:
             loss = self.uncertainty_weight * total_entropy + self.distance_weight * distance
             loss.backward()
             self.optimizer.step()
-            print(f"Step {step:02d}: Loss: {loss.item():.4f}, Total Entropy: {total_entropy.item():.4f}, Epistemic Entropy: {epistemic_entropy.item():.4f}, Aleatoric Entropy: {aleatoric_entropy.item():.4f}, Distance: {distance.item():.4f}")
+            if self.verbose:
+                print(f"Step {step:02d}: Loss: {loss.item():.4f}, Total Entropy: {total_entropy.item():.4f}, Epistemic Entropy: {epistemic_entropy.item():.4f}, Aleatoric Entropy: {aleatoric_entropy.item():.4f}, Distance: {distance.item():.4f}")
         return self.z.detach()
