@@ -599,3 +599,221 @@ def cprint(color, text, **kwargs):
     }
     print("\x1b[%s%sm%s\x1b[0m" % (pre_code, code[color], text), **kwargs)
     sys.stdout.flush()
+
+def fine_tune_backbone(bayesian_classifier, decoder, name, train_loader, val_loader, num_epochs=5, 
+                      lr=0.001, lambda_recon=0.5, model_saves_dir=None, patience=5):
+    """
+    Train both classifier and decoder jointly with combined loss
+    
+    Args:
+        bayesian_classifier: The BLL model to fine-tune
+        decoder: Decoder network
+        name: Name prefix for saving models and results
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        num_epochs: Number of training epochs
+        lr: Learning rate
+        lambda_recon: Weight for reconstruction loss
+        model_saves_dir: Directory to save models and results
+        patience: Early stopping patience
+    """
+    # Create directories for saving models and results
+    models_dir = os.path.join(model_saves_dir, name + '_models')
+    results_dir = os.path.join(model_saves_dir, name + '_results')
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+    
+    bayesian_classifier.to(bayesian_classifier.device)
+    decoder.to(decoder.device)
+
+    # Freeze the weights of the last layer
+    for param in bayesian_classifier.last_layer.parameters():
+        param.requires_grad = False
+    
+    # Setup optimizers and schedulers
+    classifier_optimizer = optim.Adam(bayesian_classifier.backbone.parameters(), lr=lr)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
+    
+    # Add learning rate schedulers
+    classifier_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        classifier_optimizer, mode='min', factor=0.5, patience=2, verbose=True
+    )
+    decoder_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        decoder_optimizer, mode='min', factor=0.5, patience=2, verbose=True
+    )
+    
+    # Loss functions
+    classification_criterion = nn.CrossEntropyLoss()
+    reconstruction_criterion = nn.MSELoss()
+    
+    # Initialize tracking variables
+    train_losses = {'total': [], 'classification': [], 'reconstruction': []}
+    val_losses = {'total': [], 'classification': [], 'reconstruction': []}
+    best_val_loss = float('inf')
+    patience_counter = 0
+    best_state = {
+        'backbone': None,
+        'decoder': None
+    }
+
+    tic0 = time.time()
+    for epoch in range(num_epochs):
+        # Training phase
+        bayesian_classifier.train()
+        decoder.train()
+        tic = time.time()
+        epoch_losses = {'total': 0.0, 'classification': 0.0, 'reconstruction': 0.0}
+        nb_samples = 0
+        
+        for images, labels in train_loader:
+            images = images.to(bayesian_classifier.device)
+            labels = labels.to(bayesian_classifier.device)
+            
+            # Zero gradients
+            classifier_optimizer.zero_grad()
+            decoder_optimizer.zero_grad()
+            
+            # Forward passes
+            z = bayesian_classifier.extract_features(images)
+            y_pred = bayesian_classifier.last_layer(z)
+            x_reconstructed = decoder(z)
+            
+            # Calculate losses
+            classification_loss = classification_criterion(y_pred, labels)
+            reconstruction_loss = reconstruction_criterion(x_reconstructed, images)
+            total_loss = lambda_recon * reconstruction_loss + (1 - lambda_recon) * classification_loss
+            
+            # Backward pass and optimization
+            total_loss.backward()
+            classifier_optimizer.step()
+            decoder_optimizer.step()
+            
+            # Accumulate batch losses
+            epoch_losses['total'] += total_loss.item() * len(images)
+            epoch_losses['classification'] += classification_loss.item() * len(images)
+            epoch_losses['reconstruction'] += reconstruction_loss.item() * len(images)
+            nb_samples += len(images)
+        
+        # Calculate epoch averages
+        for key in epoch_losses:
+            epoch_losses[key] /= nb_samples
+            train_losses[key].append(epoch_losses[key])
+        
+        toc = time.time()
+        
+        # Print training progress
+        print(f"Epoch [{epoch+1}/{num_epochs}], "
+              f"Total Loss: {epoch_losses['total']:.4f}, "
+              f"Class Loss: {epoch_losses['classification']:.4f}, "
+              f"Recon Loss: {epoch_losses['reconstruction']:.4f}, ", end="")
+        cprint('r', f'time: {toc - tic:.2f} seconds\n')
+        
+        # Validation phase
+        bayesian_classifier.eval()
+        decoder.eval()
+        val_epoch_losses = {'total': 0.0, 'classification': 0.0, 'reconstruction': 0.0}
+        nb_val_samples = 0
+        
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images = images.to(bayesian_classifier.device)
+                labels = labels.to(bayesian_classifier.device)
+                
+                z = bayesian_classifier.extract_features(images)
+                y_pred = bayesian_classifier.last_layer(z)
+                x_reconstructed = decoder(z)
+                
+                classification_loss = classification_criterion(y_pred, labels)
+                reconstruction_loss = reconstruction_criterion(x_reconstructed, images)
+                total_loss = lambda_recon * reconstruction_loss + (1 - lambda_recon) * classification_loss
+                
+                val_epoch_losses['total'] += total_loss.item() * len(images)
+                val_epoch_losses['classification'] += classification_loss.item() * len(images)
+                val_epoch_losses['reconstruction'] += reconstruction_loss.item() * len(images)
+                nb_val_samples += len(images)
+        
+        # Calculate validation averages
+        for key in val_epoch_losses:
+            val_epoch_losses[key] /= nb_val_samples
+            val_losses[key].append(val_epoch_losses[key])
+        
+        # Print validation metrics
+        cprint('g', f'    Val Total Loss: {val_epoch_losses["total"]:.4f}, '
+               f'Class Loss: {val_epoch_losses["classification"]:.4f}, '
+               f'Recon Loss: {val_epoch_losses["reconstruction"]:.4f}\n')
+        
+        # Save best model
+        if val_epoch_losses['total'] < best_val_loss:
+            best_val_loss = val_epoch_losses['total']
+            best_state['backbone'] = copy.deepcopy(bayesian_classifier.backbone.state_dict())
+            best_state['decoder'] = copy.deepcopy(decoder.state_dict())
+            patience_counter = 0
+            cprint('b', 'best validation loss')
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                cprint('y', f'\nEarly stopping triggered after {epoch+1} epochs')
+                break
+        
+        # After validation phase, update schedulers
+        classifier_scheduler.step(val_epoch_losses['classification'])
+        decoder_scheduler.step(val_epoch_losses['reconstruction'])
+    
+    # Calculate and print total runtime
+    toc0 = time.time()
+    runtime_per_it = (toc0 - tic0) / float(epoch + 1)
+    cprint('r', f'   average time: {runtime_per_it:.2f} seconds\n')
+    
+    # Restore best model
+    bayesian_classifier.backbone.load_state_dict(best_state['backbone'])
+    decoder.load_state_dict(best_state['decoder'])
+    
+    # Save best models
+    rand_id = np.random.randint(0, 10000)
+    # Save full BLL model checkpoint
+    bll_path = f'{models_dir}/BLL_finetuned_{rand_id}.pth'
+    bayesian_classifier.save_checkpoint(bll_path)
+    # Save decoder separately
+    decoder_path = f'{models_dir}/decoder_finetuned_{rand_id}.pt'
+    torch.save(decoder.state_dict(), decoder_path)
+    print(f'Saved best models to:\n{bll_path}\n{decoder_path}')
+    
+    # Plot training curves
+    plt.figure(figsize=(15, 5))
+    
+    # Total Loss
+    plt.subplot(1, 3, 1)
+    plt.plot(train_losses['total'], 'r--')
+    plt.plot(val_losses['total'], 'b-')
+    plt.title('Total Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(['Train', 'Validation'])
+    plt.grid(True)
+    
+    # Classification Loss
+    plt.subplot(1, 3, 2)
+    plt.plot(train_losses['classification'], 'r--')
+    plt.plot(val_losses['classification'], 'b-')
+    plt.title('Classification Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(['Train', 'Validation'])
+    plt.grid(True)
+    
+    # Reconstruction Loss
+    plt.subplot(1, 3, 3)
+    plt.plot(train_losses['reconstruction'], 'r--')
+    plt.plot(val_losses['reconstruction'], 'b-')
+    plt.title('Reconstruction Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(['Train', 'Validation'])
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'{results_dir}/fine_tuning_losses.png')
+    
+    plt.close()
+    
+    return train_losses, val_losses
