@@ -187,21 +187,38 @@ def prepare_dataset(autoencoder, device, batch_size=64, image_size=28):
     return train_loader, test_loader, test_features[:16]  # Keep first 16 test features for visualization
 
 
-def train_diffusion_model(train_loader, test_loader, test_features, device, epochs=30):
-    """Train the DDIM model."""
-    # Create the diffusion model
-    print("Creating diffusion model...")
-    diffusion_model = DiffusionModel(
-        time_embedding_dim=32,
-        feature_embedding_dim=64,
-        image_size=28,
-        widths=[32, 64, 128],
-        block_depth=2,
-        device=device
-    )
+def train_diffusion_model(train_loader, test_loader, test_features, device, epochs=30, existing_model=None):
+    """Train the DDIM model.
     
-    # Compute dataset statistics for normalization
-    diffusion_model.adapt_input_data(train_loader)
+    Args:
+        train_loader: DataLoader for training data
+        test_loader: DataLoader for test data
+        test_features: Feature vectors for test samples
+        device: Device to use for training
+        epochs: Number of epochs to train for
+        existing_model: Optional existing DiffusionModel to continue training
+        
+    Returns:
+        Trained DiffusionModel
+    """
+    # Create or use existing diffusion model
+    if existing_model is not None:
+        print("Using existing diffusion model...")
+        diffusion_model = existing_model
+    else:
+        # Create a new diffusion model
+        print("Creating diffusion model...")
+        diffusion_model = DiffusionModel(
+            time_embedding_dim=32,
+            feature_embedding_dim=64,
+            image_size=28,
+            widths=[32, 64, 128],
+            block_depth=2,
+            device=device
+        )
+        
+        # Compute dataset statistics for normalization
+        diffusion_model.adapt_input_data(train_loader)
     
     # Create optimizer
     optimizer = optim.Adam(diffusion_model.parameters(), lr=1e-4)
@@ -245,11 +262,14 @@ def train_diffusion_model(train_loader, test_loader, test_features, device, epoc
                 diffusion_times = torch.rand(size=(batch_size, 1), device=device)
                 
                 # Get alphas for diffusion times
-                alphas, _ = diffusion_model._diffusion_schedule(diffusion_times)
+                alphas = diffusion_model._diffusion_schedule(diffusion_times)
+                
+                # Reshape alphas for proper broadcasting
+                alphas_expanded = alphas.view(-1, 1, 1, 1)
                 
                 # Add noise to images
                 noise = torch.randn_like(images)
-                noisy_images = torch.sqrt(alphas) * images + torch.sqrt(1 - alphas) * noise
+                noisy_images = torch.sqrt(alphas_expanded) * images + torch.sqrt(1 - alphas_expanded) * noise
                 
                 # Predict noise
                 pred_noise = diffusion_model(noisy_images, diffusion_times, features)
