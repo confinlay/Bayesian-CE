@@ -1,95 +1,103 @@
-# Master's Thesis on Bayesian Deep Learning - 2024/2025
+# Counterfactual Explanations from Internal Representations
 
-This repository contains a work-in-progress implementation of my Master's thesis project, which will investigate how Bayesian last-layer neural network architectures can be leveraged to improve existing methods for explaining uncertainty. The primary objective will be to adapt an influential method of explaining uncertainty, CLUE (Counterfactual Latent Uncertainty Explanations)[^1], such that it exploits the architecture of Bayesian last-layer neural networks. The proposed method will align uncertainty explanations with the internal representations of the predictive model while reducing computational overhead.
-
-I am pursuing this project in fulfilment of my Master's degree in Computer Engineering at Trinity College Dublin, from which I will graduate in Autumn 2025. This project will be completed by April 2025, at which point I will publish my thesis write-up here.
-
-Currently, this README contains a short description of my project idea/proposal. I will update it with implementation details as I progress.
-
-## Background and Motivation
-
-### Bayesian Last-Layers
-Approximating Bayesian inference in neural networks is computationally challenging due to the intractability of the posterior distribution and the high dimensionality of parameter spaces, making scalable and efficient methods essential for the wider adoption of Bayesian neural networks. 
-
-Bayesian last-layer architectures represent a promising avenue for balancing computational efficiency and accuracy in uncertainty estimation. These architectures separate representation learning from uncertainty estimation by using deterministic layers to extract features and reserving Bayesian inference for the final layer. This hybrid approach significantly reduces the computational overhead associated with full-network Bayesian inference while preserving high-quality uncertainty estimates.
-
-The paper “On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation”[^2] demonstrated that Bayesian last-layer architectures achieve comparable performance to fully Bayesian networks tasks which involve quantifying uncertainty, such as out-of-distribution detection and selective classification. These findings suggest that uncertainty quantification primarily depends on the final layer of the network, making it unnecessary to apply Bayesian inference across all layers. Since the publication of this paper, there have been several more approaches proposed for this sort of partially Bayesian inference, such as a last-layer variant of the Laplace approximation[^3] and "Variational Bayesian last-layers"[^4].
-
-### Explanations for Uncertainty
-Explaining uncertainty in Bayesian neural networks is essential for making machine learning models more interpretable and trustworthy, especially in safety-critical applications like healthcare and autonomous systems. While uncertainty estimates themselves provide insights into a model’s confidence, methods like CLUE go further by seeking to identify the _sources_ of uncertainty.
-
-CLUE works by generating counterfactual examples—alternative data points that are similar to the original input but lead to significantly more confident predictions. The difference between the original input and its counterfactual provides an interpretation of the source of uncertainty in the model's prediction. CLUE achieves this by leveraging a deep generative model (DGM), such as a Variational Autoencoder (VAE), trained on the same dataset as the Bayesian classifier. The method optimises in the VAE's latent space, ensuring that the generated counterfactuals remain realistic and within the data distribution.
-
-Several approaches have been proposed since this paper was published, some of which build on CLUE while others take an alternative approach focused on feature attribution. For example, $\Delta$-CLUE[^5] generates diverse sets of counterfactual explanations, while a method based on path integrals[^6] attributes uncertainty to individual input features by analysing changes along the CLUE optimisation path. Feature attribution techniques, such as UA-Backprop[^7] and adaptations of existing XAI methods like LIME and LRP[^8], directly assign uncertainty contributions to specific input features without requiring an auxiliary generative model. These approaches are more lightweight than the CLUE-like methods, but their local explanations can have limited expressiveness and lack the same insights into how to _reduce_ uncertainty.
-
-## Proposed Approach: Leveraging Bayesian Last-Layers for CLUE
-The primary objective of this project is to adapt the CLUE method such that it exploits the architecture of Bayesian last-layer neural networks. More specifically, we aim to eliminate the reliance on the latent space of an external DGM by directly utilising the classifier's internal latent space for counterfactual generation. Because all of the uncertainty estimation takes place in the last layer of the classification model, we can directly alter the latent representation found in the penultimate layer of the network and feed it through the last layer while optimising for a counterfactual. 
-
-### How It Works
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/4c894c0a-7e39-4c8f-92c5-e8b891f5622d" alt="61bdffca-432b-4d96-a558-c07c14099ed3 sketchpad" width="700" style="border:5px solid #000; border-radius:50px;">
-</div>
-
-1. **Classifier Training**:
-   - Train a last-layer Bayesian neural network where the deterministic layers essentially act as a feature extractor, mapping inputs $x$ to an intermediate latent representation $z$, and the Bayesian last layer provides uncertainty-aware classification.
-
-2. **Latent Space Optimization**:
-   - When encountering an uncertain prediction, the intermediate latent representation $z$ is optimised to reduce uncertainty in the Bayesian last layer by:
-     - Minimising uncertainty in the classifier’s prediction.
-     - Maintaining proximity to the original latent representation.
-   - By optimising directly in the classifier’s latent space, the counterfactual search aligns closely with the model’s 'understanding' of the data.
-
-3. **Final Counterfactual Generation**:
-   - After latent space optimisation, the final latent point is decoded using a DGM trained to reconstruct the training data from the features learned by the Bayesian neural network.
-
-#### **Key Advantages**
-This method focuses the optimisation process on the classifier’s _internal_ latent space, resulting in the following benefits:
-
-- **Efficiency**: Computation costs are reduced; instead of requiring $n$ generations and $n$ full-network predictions for $n$ optimisation steps, only $n$ last-layer predictions are needed, followed by a single final generation for the counterfactual.
-- **Alignment**: By using the classification latent space, the optimisation process directly aligns counterfactuals with the classifier’s interpretation of the data. This ensures the generated counterfactuals reflect the decision-making process of the model itself.
-- **Class-consistency**: As discussed in the following section, the latent space of the classifier is expected to be sparser than that of a deep generative model (DGM), with distinct separation between class clusters. We anticipate that this structure will encourage counterfactuals to remain within the class of the original input, rather than crossing class boundaries. This contrasts with the original implementation of CLUE, where such boundary-crossing was more common. We argue that counterfactuals which remain class-consistent provide a clearer explanation of uncertainty, avoiding the conflation of uncertainty explanations with those of the classifier's decision boundaries.
+This year I'm working on a research project in the area of Bayesian Deep Learning as part of my Master's degree in Computer Engineering. It's still a work-in-progress, but I've included a short summary of where the project is currently at below. The scope of the project may change over time, so I'll try to update this often. I'll certainly make the dissertation avilable once I complete it in late April.
 
 
+## Counterfactual Explanations for Black-box Models
+The field of Explainable AI (XAI) is vast and contains many sub-fields and approaches to explaining the predictions of machine learning models. Within the sub-field of explanations for black-box models (e.g. neural networks), one popular approach is to use *counterfactual explanations*. If we take as an example a neural network that decides whether you're eligible for a loan, and the network predicts that you are not eligible, a counterfactual explanation would give you a minimal change to the data (e.g. increase your income by €10,000) which would result in the network instead predicting that you *are* eligible.
 
-### Understanding the new latent space
+Counterfactual explanations are very actionable and interpretable, but come with some difficulties when compared with other approaches like feature attributions (e.g. which one of my features were most important in denying me a loan, my income, age, or credit score?). The central challenge is staying *on the data manifold* when generating counterfactuals. This refers to the fact that the perturbations made to the data should produce counterfactuals that are still valid data points (e.g. don't tell me to increase my income by €10,000,000).
 
-<div align="center">
-  <img width="500" alt="Screenshot 2025-01-15 at 18 13 37" src="https://github.com/user-attachments/assets/0ddd3dff-fdb4-4be7-9c74-3d631ea037e6" />
-</div>
+In practice, most counterfactual explanation methods leverage a deep generative model to find counterfactuals. This generative model is trained on the same data as the classification model we want to explain. To produce a counterfactual, we encode the original data point into the latent space of the generative model, and then take minimal steps within the latent space to optimise the objective. In our previous example, the objective would be to change the predicted class from not eligible to eligible. There are two main problems with this approach:
 
-Although generating an input for each step of CLUE optimisation is no longer needed, it will still be necessary to generate an input for the final latent point. The paper ”Classify and generate: Using classification latent space representations for image generations”[^9] provides helpful guidance in this regard, as it describes how to use features extracted by a classification model for the downstream task of generation. As can be seen in the diagram above (taken from this paper), a classifier's latent space (right) is optimised for separating classes and is typically sparser, with less emphasis on maintaining a continuous or well-structured manifold as is found in the generative model (left). 
+1. For $n$ optimisation steps to find a counterfactual, we need to make $n$ forward passes through the generative model. This can be quite slow for complex datasets and models.
+2. The latent space of the generative model is not aligned with the learned representations of the classification model. This means that the counterfactuals generated may be adversarial examples (i.e. highly irregular outliers to the underlying decision-making process of the classifier) and thus don't truly explain the local decision boundary.
+3. The quality of our explanation process for the classification model is dependent on the quality of the generative model. For complex problems where generating high-quality samples is difficult, this is a challenge.
 
-The paper proposes techniques for remaining on the data manifold when generating data points which may prove useful for keeping our counterfactuals in-distribution. Our hope is that their techniques won’t be necessary; if uncertainty is higher in sparser areas of the latent space, then the CLUE algorithm will naturally ’find’ its way back to the data manifold.
+In a way, this approach of using a generative model to produce counterfactuals is overkill. We don't truly need the capacity to sample new data points from the input distribution, we simply need to find meaningful changes to existing data. In this sense, we are only using the generative model to approximate the data manifold. However, as we'll see later, there are other proxies for the data manifold that we can leverage to this end.
 
-#### Why this method may be particularly suited for explanations of uncertainty
+## Bayesian Neural Networks
+Bayesian Neural Networks (BNNs) are a special type of neural network that is very good at providing uncertainty estimates for their predictions. Where traditional neural networks are usually overconfident about incorrect predictions, BNNs are much more accurate in estimating their uncertainty. This sort of behaviour is essential in situations where incorrect predictions can have dire consequences, such as in healthcare or autonomous driving. 
 
-When looking at the classifier's latent space (right), it's clear why, in the broader XAI community beyond Bayesian neural networks, there are limited papers that utilize the classification latent space for counterfactual explanations of class predictions. Most approaches that use a unified latent space include some form of regularization to ensure that the latent space aligns more closely with that of a generative model.
+BNNs achieve this by learning a distribution over the weights of the network, rather than a single point estimate. This allows them to provide a distribution over their predictions, which can be used to estimate the epistemic uncertainty (uncertainty in the model's ability to generalise) and aleatoric uncertainty (inherent and irreducible uncertainty in the data) of their predictions.
 
-In these traditional counterfactual explanations, the goal is usually to _change_ the class of the prediction. For instance, in MNIST, turning a '3' into an '8' would require navigating across class clusters in the latent space. However, the strict separation of class clusters, as illustrated on the right, makes it difficult to traverse from one to another while remaining on the data manifold. 
+BNNs have been shown to have statistical guarantees for robustness to adversarial attacks, where input data is altered in such a way that is undetectable by humans, but causes the neural network to change it's prediction. Additionally, they are excellent at identifying out of distribution data i.e. they can identify outliers in the data at inference time that are not representative of the training data. One of the goals of this dissertation is show how this means that Bayesian Neural Networks construct an implicit approximation to the data manifold.
 
-In contrast, explaining **uncertainty** does not require crossing class boundaries. Instead, the goal is to move within the same class cluster to identify changes that reduce the uncertainty associated with a prediction. This shift significantly simplifies the counterfactual generation process in classification latent spaces. Additionally, since the latent space is aligned with the classifier's decision-making process, we expect that an _uncertain_ prediction of a '3', for example, will naturally lie near the cluster of '3' predictions.
+### Bayesian Last-Layer Neural Networks
+While Bayesian neural networks have many advantages over traditional neural networks, the approximate Bayesian inference required to learn the weight distributions is computationally expensive. One proposed avenue for reducing this computational burden is to focus all of the uncertainty estimation in the final layer of the network. That is, we train a regular neural network, and then "chop off" the final layer and train a single Bayesian layer on the penultimate layer's representations. 
+
+It has been shown that these sorts of hybrid models can achieve almost identical performance to fully Bayesian equivalents on uncertainty-related metrics such as out-of-distribution detection and calibration.
+
+## Bringing It All Together
+Recent work has demonstrated a method of generating realistic counterfactuals without the need for a generative model[^2]. By using deep ensembles (approximately Bayesian) to estimate epistemic and aleatoric uncertainties, they perform a search process *directly in the input space* to find counterfactuals. By guiding the input space perturbations with the uncertainty estimates, they are able to generate remarkable realistic and in distribution counterfactuals. 
+
+This being said, the counterfactuals are still of lower quality to those generated using a generative model. While the uncertainty estimates do an impressive job of keeping the search process close the data manifold, the unconstrained and high-dimensional input space is still a challenge. 
+
+### This Dissertation's Proposal
+This brings us to the central proposal of this dissertation. What if, rather than performing an uncertainty-guided search process in the input space, we could perform a similar search process in the internal latent space of the classification model? This lower-dimensional space is much more constrained, is aligned with how the model actually makes decisions, and directions in this space will correspond to meaningful changes to the input data. However, if we explore the internal representations of a fully Bayesian model (or a deep ensemble like the one used in the previous work), we will lose the necessary uncertainty estimation provided by the earlier layers in the model.
+
+That is, unless we use a *Bayesian last layer*. In this case, we can simply perturb the representation that lies at the penultimate layer of the model, and observe the effects on the uncertainty-aware prediction of the final layer. This way, we can explore the latent space of the model, while staying close to the data manifold.
+
+At first, the goal of our counterfactual explanations will be to explain the *uncertainty* of the model's predictions, rather than changing the prediction to something else. In our loan example, this could be "Improve your credit score by 10 points to increase our confidence in granting a loan from 55% to 90%". This is an approach taken by CLUE (Counterfactual Latent Uncertainty Explanations)[^1] which use a deep generative model, as described in the first section, to find minimal changes to an input which *reduce* the model's uncertainty.
+
+The final issue to address is how we can make these latent space changes *interpretable*. In practice, this is a question of how we project these changes back onto the input space so users can understand the changes in the input data necessary to reduce the model's uncertainty. We set out two primary methods for doing this:
+
+**1. Decoder**: The first and most straightforward approach is to train a decoder to reconstruct inputs from the latent space of the classifier. Granted, this essentially reintroduces the need for a generative model, but we will have removed the generative model's role in the counterfactual search process. Also, in this case, it is more of an autoencoder than a variational autoencoder, and thus is optimised for reconstructing the training data and not for sampling new data from the training distribution. 
+- Initial experiments show that using this setup with a traditional neural network (i.e. guiding the search process with the deterministic entropy of the final layer) finds adversarial latent points $z$ which results in 0 entropy in the final layer, but decode to form *the exact same input as the original data*. So, if the decoded counterfactual is passed through the model again, the uncertainty will be unchanged.
+- If further experiments with a Bayesian last layer instead result in *actual changes* to the input data which reduce uncertainty when passed through the model again, we will have some evidence that the Bayesian last layer is able to guide the search process to find latent points $z$ which correspond to real input data points.
+
+**2. Path Integrals**: Next, I plan on developing an approach based on path integrals, inspired by the integrated gradients (INTGRAD) method. The original version of this XAI method involves selecting a "null" reference input (e.g. a black image) and gradually transforming this into the target input. The gradients of the prediction with respect to the input features at each step are then integrated to produce a saliency map, showing how each feature contributed to the final prediction.
+- This general framework has since been applied to the task of explaining uncertainty[^3]. In this paper, the authors instead leverage a generative model (like in CLUE)[^1] to find a counterfactual, but then use the path integral between the original and counterfactual latent points to produce a saliency map.
+- Applied to our case, we would instead use the path integral between the original and counterfactual latent points at the penultimate layer of the model to project the changes back onto the input space. The drawback here is that we are now provide *feature attributions* rather than counterfactual explanations. 
+
+Early experiments of the first method have indeed shown that Bayesian last layers are able to guide the search process in such a way that results in latent points $z$ which decode to form input data points which meaningfully differ from the original input. When the decoded input is passed through the entire model again, the uncertainty is significantly reduced. I'm currently working on some larger scale experiments to observe the extent of this behaviour, but these initial signs are encouraging. 
+
+The central goal of the project is to fully implement and test both of the above methods, using their performance to analyse how Bayesian last layers implicitly learn a representation of the data manifold within the penultimate layer representations of the model. If these methods are successful, I have also proposed a third method which allows the path integrals approach to be used to actually generate counterfactuals. This method is described in the following appendix, should it be of interest.
+
+
+### Appendix: Generating Counterfactuals with Path Integrals
+Let’s reconsider the paper where counterfactual explainations are generated without a generative model by guiding an input space search with uncertainty estimates. The authors use a simple implementation of a saliency map (i.e. the gradient of the prediction with respect to the input features) to iteratively update the values of inputs dimensions, while using the epistemic and aleatoric uncertainties to keep them on manifold. 
+
+However, methods based on integrated gradients claim to produce better saliency maps and, in the previous section, we have proposed a method of integrating gradients along an optimisation path in the classification latent space to produce even better saliency maps. What if we used *these* saliency maps for the input dimension updates? Since the inputs will need several updates to move towards a counterfactual, this would involve a sort of meta-optimisation approach with an inner and an outer loop:
+
+1. **Inner Loop: Latent Space Optimization** 
+    1. Start with the original input  $x_0$ , which maps to latent representation  $z_0$
+    2. Perform iterative **latent space optimization** to find a low-entropy latent point  $z^*$. 
+    3. Track the **gradient of latent updates** with respect to the input space: $\frac{\partial z}{\partial x}$
+    4. Store the **full trajectory of updates**  $(z_0 \to z_1 \to \dots \to z^*)$.
+2. **Integrate Latent Step Gradients Back to Input Space**
+    1. Instead of using the final optimized  $z^*$ , **integrate the step-wise gradients back to the input space**, similar to **Integrated Gradients (INTGRAD)**: $\Delta x = \sum_{t=0}^{T} (z_{t} - z_{t-1}) \cdot \frac{\partial z}{\partial x} \Big|_{z_t}$
+    2. This forms a **saliency map** indicating how each input feature contributed to the uncertainty reduction.
+3. **Outer Loop: Input Space Update**
+    1. Update  $x$  using this **feature attribution map**: $x{\prime} = x + \alpha \cdot \Delta x$
+    2. Here, $\alpha$ is a step size controlling how much we modify the input.
+    3. This ensures that input-space changes are informed by **what actually reduced uncertainty in latent space**.
+4. **Iterate Until Convergence**
+    1. Recalculate the latent representation for the updated input $x{\prime}$, then repeat the process.
+    2. Stop when:
+        1. The classifier’s predictive entropy is sufficiently low.
+        2. The change in $x$ stabilizes.
+
+It's unlikely that it will be possible to implement this method within the scope of this dissertation, but I plan on having a go at it once the project is complete.
+
+
+[^1]: Antorán, Javier et al. “Getting a CLUE: A Method for Explaining Uncertainty Estimates.” ArXiv abs/2006.06848 (2021): n. pag.
+[^2]: Schut, Lisa et al. “Generating Interpretable Counterfactual Explanations By Implicit Minimisation of Epistemic and Aleatoric Uncertainties.” ArXiv abs/2103.08951 (2021): n. pag.
+[^3]: Perez, Iker et al. “Attribution of Predictive Uncertainties in Classification Models.” ArXiv abs/2107.08756 (2022): n. pag.
 
 
 
-## **Secondary Task: Exploring Adjacent Methods**
-
-While the proposal described above is likely to provide some interesting results, it is anticipated that there will be some limitations relating to reconstruction accuracy from the classification latent space for some datasets. This is why, subject to progress on the primary objective, this dissertation also aims to explore how insights from adjacent methods can be applied in this context:
-
-- **Path Integrals [^6]**: By analyzing the changes in input dimensions during CLUE optimization, this approach could help mitigate challenges like poor reconstruction accuracy.
-- **UA-Backprop [^7]**: The uncertainty gradients backpropagated in this method are not decomposable into epistemic and aleatoric uncertainties, as the set of gradients obtained for each sampling of the weights is averaged post-hoc. This may change for last-layer models, where most of the layers are fixed.
 
 
-# **Conclusion**
 
-In conclusion, this project will investigate how Bayesian last-layer neural network architectures can be leveraged to improve existing methods for explaining uncertainty. By adapting CLUE to last-layer Bayesian architectures, we aim to improve computational efficiency, align counterfactuals with the classifier’s internal representations, and generate counterfactuals which are consistent with the class of the original input. The integration of adjacent methods, such as path integrals and UA-Backprop, may enhance the robustness of the proposed method.
 
-[^1]: Antor'an, Javier et al. “Getting a CLUE: A Method for Explaining Uncertainty Estimates.” ArXiv abs/2006.06848 (2020): n. pag.
-[^2]: Brosse, Nicolas et al. “On Last-Layer Algorithms for Classification: Decoupling Representation from Uncertainty Estimation.” ArXiv abs/2001.08049 (2020): n. pag.
-[^3]: Daxberger, Erik A. et al. “Laplace Redux - Effortless Bayesian Deep Learning.” Neural Information Processing Systems (2021).
-[^4]: Harrison, James et al. “Variational Bayesian Last Layers.” ArXiv abs/2404.11599 (2024): n. pag.
-[^5]: Ley, D. et al. “Diverse, Global and Amortised Counterfactual Explanations for Uncertainty Estimates.” ArXiv abs/2112.02646 (2021): n. pag.
-[^6]: Perez, Iker et al. “Attribution of predictive uncertainties in classification models.” Conference on Uncertainty in Artificial Intelligence (2021).
-[^7]: Wang, Hanjing et al. “Gradient-based Uncertainty Attribution for Explainable Bayesian Deep Learning.” 2023 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) (2023): 12044-12053.
-[^8]: Brown, Katherine E. and Douglas A. Talbert. “Using Explainable AI to Measure Feature Contribution to Uncertainty.” The International FLAIRS Conference Proceedings (2022): n. pag.
-[^9]: Gopalakrishnan, Saisubramaniam et al. “Classify and generate: Using classification latent space representations for image generations.” Neurocomputing 471 (2020): 296-334.
+
+
+
+
+
+
+
+
+
 
