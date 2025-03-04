@@ -59,10 +59,14 @@ class DownSample(nn.Module):
 
 class UpSample(nn.Module):
     """Upsampling layer with convolution."""
-    def __init__(self, channels):
+    def __init__(self, in_channels, out_channels=None):
         super().__init__()
+        # If out_channels is not specified, use the same as in_channels
+        out_channels = out_channels or in_channels
+        
         self.up = nn.Upsample(scale_factor=2, mode="nearest")
-        self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        # Now explicitly support different input and output channel counts
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
         
     def forward(self, x):
         x = self.up(x)
@@ -70,18 +74,8 @@ class UpSample(nn.Module):
 
 
 class DiffusionModel(nn.Module):
-    """
-    Minimal DDIM (Denoising Diffusion Implicit Model) for MNIST dataset
-    that conditions on feature vectors from an autoencoder.
+    """Diffusion model with U-Net architecture conditioned on feature vectors."""
     
-    This implements a diffusion autoencoder approach where:
-    1. An image is encoded to get a latent vector
-    2. The original image has noise added at various timesteps
-    3. The model denoises the image conditioned on the latent vector
-    
-    This allows for latent space manipulation - you can perturb the latent
-    vector and observe how it affects the denoising process.
-    """
     def __init__(
         self,
         time_embedding_dim=32,
@@ -93,117 +87,173 @@ class DiffusionModel(nn.Module):
     ):
         super().__init__()
         
+        # Set device
+        self.device = device if device else (
+            torch.device("cuda") if torch.cuda.is_available() else 
+            torch.device("mps") if torch.backends.mps.is_available() else 
+            torch.device("cpu")
+        )
+        
+        # Store hyperparameters
         self.image_size = image_size
+        self.widths = widths
+        self.time_embedding_dim = time_embedding_dim
+        self.feature_embedding_dim = feature_embedding_dim
         
-        # Handle device setup with MPS support
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                device = "mps"
-            else:
-                device = "cpu"
-        
-        self.device = torch.device(device)
-        print(f"DiffusionModel using device: {self.device}")
-        
-        # Register buffers for normalization statistics
-        self.register_buffer('img_mean', torch.tensor([0.0]))
-        self.register_buffer('img_std', torch.tensor([1.0]))
-        
-        # Time embedding layers (for diffusion timestep)
+        # Time step embedding
         self.time_embed = nn.Sequential(
             nn.Linear(1, time_embedding_dim),
             nn.SiLU(),
             nn.Linear(time_embedding_dim, time_embedding_dim),
-            nn.SiLU(),
         )
         
-        # Feature embedding layers (for conditioning)
+        # Feature vector embedding for conditioning
         self.feature_embed = nn.Sequential(
-            nn.Linear(256, feature_embedding_dim),  # Assuming 256-dim features
+            nn.Linear(256, feature_embedding_dim),  # Assuming feature vector dim is 256
             nn.SiLU(),
             nn.Linear(feature_embedding_dim, feature_embedding_dim),
-            nn.SiLU(),
         )
         
-        # U-Net encoder (downsampling)
-        self.encoder_blocks = nn.ModuleList()
-        self.skips = nn.ModuleList()
-        self.downsamples = nn.ModuleList()
+        # Initial convolution that maps image to the first feature width
+        self.initial_conv = nn.Conv2d(1, widths[0], kernel_size=3, padding=1)
         
-        # Initial convolution to get to the first width
-        self.initial_conv = nn.Conv2d(1, widths[0], kernel_size=1)
+        # U-Net encoder (downsampling path)
+        self.encoder_blocks = nn.ModuleList([])
+        self.downsamples = nn.ModuleList([])
+        self.skips = nn.ModuleList([])
         
-        # Encoder path
-        in_channels = widths[0]
+        # Input width for encoder blocks starts with the first width
+        input_width = widths[0]
+        
+        # For each width in the encoder path
         for i, width in enumerate(widths):
-            # Add residual blocks
-            blocks = nn.ModuleList()
+            # Add a series of ResidualBlocks for this width
+            blocks = []
             for _ in range(block_depth):
-                blocks.append(ResidualBlock(in_channels, width, time_embedding_dim, feature_embedding_dim))
-                in_channels = width
-            self.encoder_blocks.append(blocks)
+                blocks.append(
+                    ResidualBlock(
+                        in_channels=input_width,
+                        out_channels=width,
+                        time_emb_dim=time_embedding_dim,
+                        feature_emb_dim=feature_embedding_dim
+                    )
+                )
+                input_width = width
             
-            # Add skip connections
-            self.skips.append(nn.Conv2d(width, width, kernel_size=1))
+            # Add the blocks to encoder_blocks
+            self.encoder_blocks.append(nn.ModuleList(blocks))
             
-            # Add downsampling except for the last block
+            # Add skip connection (identity if no change in channels needed)
+            self.skips.append(
+                nn.Conv2d(width, width, kernel_size=1) if i < len(widths) - 1 else nn.Identity()
+            )
+            
+            # Add a downsampling layer except for the last width
             if i < len(widths) - 1:
                 self.downsamples.append(DownSample(width))
-                
+        
         # U-Net bottleneck
         self.bottleneck_blocks = nn.ModuleList([
-            ResidualBlock(widths[-1], widths[-1], time_embedding_dim, feature_embedding_dim),
-            ResidualBlock(widths[-1], widths[-1], time_embedding_dim, feature_embedding_dim),
+            ResidualBlock(
+                in_channels=widths[-1],
+                out_channels=widths[-1],
+                time_emb_dim=time_embedding_dim,
+                feature_emb_dim=feature_embedding_dim
+            )
+            for _ in range(block_depth)
         ])
         
-        # U-Net decoder (upsampling)
-        self.decoder_blocks = nn.ModuleList()
-        self.upsamples = nn.ModuleList()
+        # U-Net decoder (upsampling path)
+        self.decoder_blocks = nn.ModuleList([])
+        self.upsamples = nn.ModuleList([])
         
-        # Decoder path
-        for i, width in enumerate(reversed(widths)):
-            # Add upsampling except for the first block
-            if i > 0:
-                self.upsamples.append(UpSample(width))
+        # Create reversed width list for decoder
+        decoder_widths = list(reversed(widths))
+        
+        # For each width in the decoder path (excluding the first/bottleneck)
+        for i in range(len(decoder_widths)):
+            decoder_blocks = []
             
-            # Add residual blocks with skip connections from encoder
-            blocks = nn.ModuleList()
-            in_channels = width * 2 if i > 0 else width  # Double channels due to skip connection
-            for j in range(block_depth + 1):
-                if j == 0 and i > 0:
-                    # First block after skip connection has double input channels
-                    blocks.append(ResidualBlock(in_channels, width, time_embedding_dim, feature_embedding_dim))
-                else:
-                    blocks.append(ResidualBlock(width, width, time_embedding_dim, feature_embedding_dim))
-            self.decoder_blocks.append(blocks)
+            # First block in decoder might be the bottleneck
+            if i == 0:
+                # No skip connection for bottleneck, input channels = output channels 
+                in_channels = decoder_widths[i]
+            else:
+                # After the first block, we need to handle skip connections
+                # Input is the output from previous layer + skip connection from encoder
+                in_channels = decoder_widths[i-1] + decoder_widths[i]  # Skip connection doubles the channels
                 
-        # Output layer
-        self.final_conv = nn.Conv2d(widths[0], 1, kernel_size=1)
+                # Add upsampler between decoder blocks
+                self.upsamples.append(
+                    UpSample(
+                        in_channels=decoder_widths[i-1],
+                        out_channels=decoder_widths[i-1]
+                    )
+                )
+            
+            # Add blocks for this decoder stage
+            for j in range(block_depth):
+                decoder_blocks.append(
+                    ResidualBlock(
+                        in_channels=in_channels if j == 0 else decoder_widths[i],
+                        out_channels=decoder_widths[i],
+                        time_emb_dim=time_embedding_dim,
+                        feature_emb_dim=feature_embedding_dim
+                    )
+                )
+            
+            self.decoder_blocks.append(nn.ModuleList(decoder_blocks))
+            
+        # Final output convolution to map to a single channel
+        self.final_conv = nn.Conv2d(widths[0], 1, kernel_size=3, padding=1)
+        
+        # Initialize the dataset statistics for normalization
+        self.register_buffer("data_mean", torch.tensor(0.1307))
+        self.register_buffer("data_std", torch.tensor(0.3081))
         
         # Move model to device
         self.to(self.device)
+        self._print_model_summary()
+        
+    def _print_model_summary(self):
+        """Print a summary of the model architecture."""
+        print(f"DiffusionModel using device: {self.device}")
     
     def _diffusion_schedule(self, diffusion_times):
-        """Returns noise schedules for training and sampling."""
-        # Cosine schedule as proposed in the improved DDPM paper
-        start_angle = torch.tensor(0.999, device=self.device).acos()
-        end_angle = torch.tensor(0.01, device=self.device).acos()
+        """
+        Generates alpha values for the diffusion process at the specified timesteps.
         
-        diffusion_angles = start_angle + diffusion_times * (end_angle - start_angle)
-        alphas = diffusion_angles.cos() ** 2
-        alphas_prev = torch.cat([torch.ones_like(alphas[:, :1]), alphas[:, :-1]], dim=1)
+        Args:
+            diffusion_times: Tensor of shape [batch_size, 1] or [batch_size] with values in [0, 1]
+                             where 0 = no noise, 1 = pure noise
+                             
+        Returns:
+            Tensor of alpha values at the diffusion times
+        """
+        # Ensure diffusion_times is properly shaped
+        if diffusion_times.dim() == 1:
+            diffusion_times = diffusion_times.unsqueeze(-1)
         
-        return alphas, alphas_prev
+        # Use beta schedule from 1e-4 to 0.02 as per DDPM paper
+        start_beta = 1e-4
+        end_beta = 0.02
+        
+        # Linear beta schedule
+        betas = start_beta + diffusion_times * (end_beta - start_beta)
+        
+        # Calculate alpha and alpha_cumprod as in DDPM
+        alphas = 1.0 - betas
+        alpha_cumprod = torch.cumprod(alphas, dim=-1)
+        
+        return alpha_cumprod.squeeze(-1)
     
     def normalize(self, images):
         """Normalize images to mean 0 and std 1."""
-        return (images - self.img_mean) / self.img_std
+        return (images - self.data_mean) / self.data_std
     
     def denormalize(self, images):
         """Convert normalized images back to pixel values."""
-        images = images * self.img_std + self.img_mean
+        images = images * self.data_std + self.data_mean
         return torch.clamp(images, 0.0, 1.0)
     
     def adapt_input_data(self, data_loader):
@@ -214,10 +264,10 @@ class DiffusionModel(nn.Module):
         images, _ = next(iter(data_loader))  # Assuming (images, features) tuple
         
         # Compute statistics
-        self.img_mean = images.mean().to(self.device)
-        self.img_std = images.std().to(self.device)
+        self.data_mean = images.mean().to(self.device)
+        self.data_std = images.std().to(self.device)
         
-        print(f"Dataset statistics - Mean: {self.img_mean.item():.4f}, Std: {self.img_std.item():.4f}")
+        print(f"Dataset statistics - Mean: {self.data_mean.item():.4f}, Std: {self.data_std.item():.4f}")
     
     def forward(self, noisy_images, diffusion_times, feature_vectors):
         """Forward pass through the U-Net denoising model."""
@@ -231,14 +281,15 @@ class DiffusionModel(nn.Module):
         x = self.initial_conv(noisy_images)
         
         # U-Net encoder (downsampling path)
-        skip_outputs = []
+        skip_connections = []
+        
         for i, blocks in enumerate(self.encoder_blocks):
-            # Process through residual blocks
+            # Process through residual blocks at this level
             for block in blocks:
                 x = block(x, t_emb, f_emb)
             
             # Store skip connection
-            skip_outputs.append(self.skips[i](x))
+            skip_connections.append(x)
             
             # Downsample if not the last block
             if i < len(self.encoder_blocks) - 1:
@@ -248,49 +299,77 @@ class DiffusionModel(nn.Module):
         for block in self.bottleneck_blocks:
             x = block(x, t_emb, f_emb)
         
-        # U-Net decoder (upsampling path) with skip connections
+        # U-Net decoder (upsampling path)
         for i, blocks in enumerate(self.decoder_blocks):
-            # Upsample if not the first block
+            # Skip the upsampling for the first block (bottleneck)
             if i > 0:
+                # Upsample
                 x = self.upsamples[i-1](x)
-                # Add skip connection
-                skip_index = len(skip_outputs) - i
-                x = torch.cat([x, skip_outputs[skip_index]], dim=1)
+                
+                # Add skip connection from the corresponding encoder level
+                # The connections are in reverse order - we use negative indexing
+                skip_idx = len(skip_connections) - i
+                skip = skip_connections[skip_idx - 1]
+                x = torch.cat([x, skip], dim=1)
             
-            # Process through residual blocks
+            # Process through residual blocks at this level
             for block in blocks:
                 x = block(x, t_emb, f_emb)
         
-        # Output layer
+        # Final convolution to get output image
         x = self.final_conv(x)
+        
         return x
     
     def training_step(self, batch, optimizer):
-        """Training step for the diffusion model."""
+        """Execute a single training step with a batch of data."""
+        # Unpack the batch into images and features
         images, feature_vectors = batch
         images = images.to(self.device)
         feature_vectors = feature_vectors.to(self.device)
         
-        # Normalize images
+        # Ensure images have the correct size
+        if images.shape[-1] != self.image_size or images.shape[-2] != self.image_size:
+            print(f"Warning: Resizing images from {images.shape} to expected size {self.image_size}x{self.image_size}")
+            images = F.interpolate(images, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
+        
+        # Normalize the images
         images = self.normalize(images)
         
-        # Sample uniform random diffusion times
+        # Zero the gradients
+        optimizer.zero_grad()
+        
+        # Sample random timesteps
         batch_size = images.shape[0]
-        diffusion_times = torch.rand(size=(batch_size, 1), device=self.device)
+        diffusion_times = torch.rand(batch_size, 1, device=self.device)
         
-        # Get alphas for chosen diffusion times
-        alphas, _ = self._diffusion_schedule(diffusion_times)
+        # Get noise schedule
+        alphas = self._diffusion_schedule(diffusion_times)
         
-        # Generate random noise and add to images
+        # Reshape alphas for proper broadcasting
+        alphas_expanded = alphas.view(-1, 1, 1, 1)
+        
+        # Sample noise
         noise = torch.randn_like(images)
-        noisy_images = torch.sqrt(alphas) * images + torch.sqrt(1 - alphas) * noise
+
+        # Create noisy images
+        sqrt_alphas = torch.sqrt(alphas_expanded)
         
-        # Train the network to predict the noise
+        term1 = sqrt_alphas * images
+        
+        sqrt_1_minus_alphas = torch.sqrt(1 - alphas_expanded)
+        
+        term2 = sqrt_1_minus_alphas * noise
+        
+        noisy_images = term1 + term2
+        
+        # Use the model to predict the noise
         pred_noise = self(noisy_images, diffusion_times, feature_vectors)
-        loss = F.mse_loss(noise, pred_noise)
+        
+        # Calculate loss (MSE between predicted and true noise)
+        loss = F.mse_loss(pred_noise, noise)
         
         # Backpropagation
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         
@@ -298,31 +377,47 @@ class DiffusionModel(nn.Module):
     
     @torch.no_grad()
     def add_noise(self, images, diffusion_time):
-        """Add noise to images at a specific diffusion time.
+        """
+        Add noise to images at a given diffusion timestep.
         
         Args:
-            images: Clean images to add noise to
-            diffusion_time: Value between 0.0 and 1.0 indicating noise level
+            images: Tensor of input images [batch_size, 1, height, width]
+            diffusion_time: Float between 0.0 and 1.0 indicating how much noise to add
             
         Returns:
-            Noisy images
+            Tuple of (noisy_images, noise) tensors
         """
-        # Ensure inputs are on the correct device
+        # Ensure images are on the correct device and have the expected size
         images = images.to(self.device)
-        if isinstance(diffusion_time, float):
-            diffusion_time = torch.tensor([[diffusion_time]], device=self.device)
-        else:
-            diffusion_time = diffusion_time.to(self.device)
-            
+        
+        # Check if the images need resizing
+        if images.shape[-1] != self.image_size or images.shape[-2] != self.image_size:
+            print(f"Warning: Resizing images from {images.shape} to expected size {self.image_size}x{self.image_size}")
+            images = F.interpolate(images, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
+        
         # Normalize images
         images = self.normalize(images)
         
-        # Get alpha values for the diffusion time
-        alphas, _ = self._diffusion_schedule(diffusion_time)
+        # Convert diffusion_time to a tensor and reshape for broadcasting
+        diffusion_times = torch.tensor([diffusion_time], device=self.device).repeat(images.shape[0])
         
-        # Add noise
+        # Get alpha values from diffusion schedule
+        alphas = self._diffusion_schedule(diffusion_times)
+        
+        # For broadcasting, reshape alphas to [batch_size, 1, 1, 1]
+        alphas_reshaped = alphas.view(-1, 1, 1, 1)
+        
+        # Sample noise from normal distribution
         noise = torch.randn_like(images)
-        return torch.sqrt(alphas) * images + torch.sqrt(1 - alphas) * noise, noise
+        
+        # Apply diffusion at specified timestep: 
+        # noisy_image = sqrt(alpha) * image + sqrt(1-alpha) * noise
+        sqrt_alphas = torch.sqrt(alphas_reshaped)
+        sqrt_one_minus_alphas = torch.sqrt(1.0 - alphas_reshaped)
+        
+        noisy_images = sqrt_alphas * images + sqrt_one_minus_alphas * noise
+        
+        return noisy_images, noise
     
     @torch.no_grad()
     def generate(
@@ -332,127 +427,126 @@ class DiffusionModel(nn.Module):
         num_steps=50,
         progress_callback=None,
     ):
-        """Generate images using DDIM sampling.
+        """
+        Generate images conditioned on feature vectors using DDIM sampling.
         
         Args:
-            feature_vectors: Latent vectors from autoencoder to condition on
-            batch_size: Number of images to generate
-            num_steps: Number of denoising steps to perform
-            progress_callback: Optional callback function to report progress
+            feature_vectors: Tensor of feature vectors to condition on [batch_size, latent_dim]
+            batch_size: Number of images to generate (if feature_vectors is None)
+            num_steps: Number of denoising steps
+            progress_callback: Optional callback function called after each step
             
         Returns:
-            Generated images
+            Tensor of generated images [batch_size, 1, height, width]
         """
-        # Move feature vectors to device
+        # Determine how many images to generate
+        if feature_vectors is not None:
+            batch_size = feature_vectors.shape[0]
+        else:
+            # If no feature vectors provided, generate random ones
+            feature_vectors = torch.randn(batch_size, 256, device=self.device)
+        
+        # Ensure feature vectors are on the correct device
         feature_vectors = feature_vectors.to(self.device)
         
         # Start with random noise
-        generated_images = torch.randn(
-            (batch_size, 1, self.image_size, self.image_size), 
-            device=self.device
-        )
+        x = torch.randn(batch_size, 1, self.image_size, self.image_size, device=self.device)
         
-        # Setup timesteps for DDIM sampling
-        diffusion_steps = torch.linspace(1.0, 0.0, num_steps + 1, device=self.device)
+        # Timesteps for denoising (from 1.0 to 0.0)
+        timesteps = torch.linspace(1.0, 0.0, num_steps + 1, device=self.device)[:-1]
         
         # DDIM sampling loop
-        for step, t in enumerate(diffusion_steps[:-1]):
-            # Current and next diffusion time
-            diffusion_time = torch.ones((batch_size, 1), device=self.device) * t
-            next_diffusion_time = torch.ones((batch_size, 1), device=self.device) * diffusion_steps[step + 1]
+        for i, t in enumerate(timesteps):
+            # Create a batch of timestep embeddings
+            timestep_batch = torch.ones(batch_size, 1, device=self.device) * t
             
-            # Get schedule values
-            alphas, _ = self._diffusion_schedule(diffusion_time)
-            alphas_next, _ = self._diffusion_schedule(next_diffusion_time)
+            # Predict noise using the model
+            pred_noise = self(x, timestep_batch, feature_vectors)
             
-            # Predict noise for current step
-            pred_noise = self(generated_images, diffusion_time, feature_vectors)
+            # Get alpha values for current timestep
+            alpha = self._diffusion_schedule(torch.tensor([t.item()], device=self.device)).view(-1, 1, 1, 1)
             
-            # DDIM formula for implicit sampling
-            x_0_pred = (generated_images - torch.sqrt(1 - alphas) * pred_noise) / torch.sqrt(alphas)
+            # Get alpha values for next timestep
+            next_t = timesteps[i + 1] if i < len(timesteps) - 1 else torch.tensor(0.0, device=self.device)
+            alpha_next = self._diffusion_schedule(torch.tensor([next_t.item()], device=self.device)).view(-1, 1, 1, 1)
             
-            # Clamp predicted clean images for stability
-            x_0_pred = torch.clamp(x_0_pred, -1.0, 1.0)
+            # DDIM update step
+            x0_pred = (x - torch.sqrt(1 - alpha) * pred_noise) / torch.sqrt(alpha)
+            x = torch.sqrt(alpha_next) * x0_pred + torch.sqrt(1 - alpha_next) * pred_noise
             
-            # Get the sample for the next step using DDIM formulation
-            coeff1 = torch.sqrt(alphas_next)
-            coeff2 = torch.sqrt(1 - alphas_next)
-            
-            generated_images = coeff1 * x_0_pred + coeff2 * pred_noise
-            
-            # Report progress
-            if progress_callback is not None and step % (num_steps // 10) == 0:
-                progress_callback(step, self.denormalize(x_0_pred))
+            # Call progress callback if provided
+            if progress_callback and callable(progress_callback):
+                progress_callback(i, num_steps, self.denormalize(x))
         
-        return self.denormalize(generated_images)
+        # Denormalize the final images
+        generated_images = self.denormalize(x)
+        
+        return generated_images
     
     @torch.no_grad()
     def denoise_with_latent(self, noisy_images, latent_vectors, diffusion_time, num_steps=20):
-        """Denoise images at a specific noise level conditioned on latent vectors.
-        
-        This is the key function for the diffusion autoencoder approach, letting you:
-        1. Start with a noisy image 
-        2. Control the denoising process with a latent vector
-        3. Potentially perturb the latent vector to see how it affects the output
+        """
+        Progressively denoise images conditioned on latent vectors.
         
         Args:
-            noisy_images: Images with noise added
-            latent_vectors: Latent vectors to condition on (can be perturbed)
-            diffusion_time: Value between 0.0 and 1.0 indicating starting noise level
-            num_steps: Number of denoising steps to perform
+            noisy_images: Tensor of noisy images [batch_size, 1, height, width]
+            latent_vectors: Tensor of feature vectors to condition on [batch_size, latent_dim]
+            diffusion_time: Float between 0.0 and 1.0 indicating the starting noise level
+            num_steps: Number of denoising steps
             
         Returns:
-            Denoised images
+            Tensor of denoised images [batch_size, 1, height, width]
         """
-        # Ensure inputs are on the right device
+        # Ensure inputs are on the correct device
         noisy_images = noisy_images.to(self.device)
         latent_vectors = latent_vectors.to(self.device)
         
-        if isinstance(diffusion_time, float):
-            diffusion_time = torch.tensor(diffusion_time, device=self.device)
-        else:
-            diffusion_time = diffusion_time.to(self.device)
-            
-        # Start with the noisy images
-        batch_size = noisy_images.shape[0]
-        denoised_images = noisy_images.clone()
+        # Check if the images need resizing
+        if noisy_images.shape[-1] != self.image_size or noisy_images.shape[-2] != self.image_size:
+            print(f"Warning: Resizing images from {noisy_images.shape} to expected size {self.image_size}x{self.image_size}")
+            noisy_images = F.interpolate(noisy_images, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
+            # Normalize after resizing
+            noisy_images = self.normalize(noisy_images)
         
-        # Setup timesteps from diffusion_time to 0
-        diffusion_steps = torch.linspace(diffusion_time.item(), 0.0, num_steps + 1, device=self.device)
+        # Calculate denoising schedule
+        start_step = int(diffusion_time * num_steps)
+        timesteps = torch.linspace(start_step / num_steps, 0, num_steps - start_step + 1, device=self.device)
         
-        # DDIM sampling loop
-        for step, t in enumerate(diffusion_steps[:-1]):
-            # Current and next diffusion time
-            current_time = torch.ones((batch_size, 1), device=self.device) * t
-            next_time = torch.ones((batch_size, 1), device=self.device) * diffusion_steps[step + 1]
+        # Start with the provided noisy images
+        x = noisy_images
+        
+        # Progressively denoise the images
+        for time in timesteps:
+            # Create a batch of time tensors
+            t_batch = torch.ones(noisy_images.shape[0], 1, device=self.device) * time
             
-            # Get schedule values
-            alphas, _ = self._diffusion_schedule(current_time)
-            alphas_next, _ = self._diffusion_schedule(next_time)
+            # Predict noise using the model
+            pred_noise = self(x, t_batch, latent_vectors)
             
-            # Predict noise for current step
-            pred_noise = self(denoised_images, current_time, latent_vectors)
-            
-            # DDIM formula for implicit sampling
-            x_0_pred = (denoised_images - torch.sqrt(1 - alphas) * pred_noise) / torch.sqrt(alphas)
-            
-            # Clamp predicted clean images for stability
-            x_0_pred = torch.clamp(x_0_pred, -1.0, 1.0)
-            
-            # Get the sample for the next step using DDIM formulation
-            coeff1 = torch.sqrt(alphas_next)
-            coeff2 = torch.sqrt(1 - alphas_next)
-            
-            denoised_images = coeff1 * x_0_pred + coeff2 * pred_noise
-            
-        return self.denormalize(denoised_images)
+            # If not the last step, add the predicted noise
+            if time > 0:
+                # Calculate the noise scaling factor for this timestep
+                alpha = self._diffusion_schedule(torch.tensor([time.item()], device=self.device)).view(-1, 1, 1, 1)
+                alpha_prev = self._diffusion_schedule(torch.tensor([max(0, time.item() - 1/num_steps)], device=self.device)).view(-1, 1, 1, 1)
+                
+                # DDIM update step
+                x0_pred = (x - torch.sqrt(1 - alpha) * pred_noise) / torch.sqrt(alpha)
+                x = torch.sqrt(alpha_prev) * x0_pred + torch.sqrt(1 - alpha_prev) * pred_noise
+            else:
+                # Last step - use the direct prediction
+                x = pred_noise
+        
+        # Denormalize to get pixel values
+        denoised_images = self.denormalize(x)
+        
+        return denoised_images
     
     def save_checkpoint(self, path):
         """Save model checkpoint."""
         torch.save({
             'model_state_dict': self.state_dict(),
-            'img_mean': self.img_mean,
-            'img_std': self.img_std,
+            'data_mean': self.data_mean,
+            'data_std': self.data_std,
         }, path)
         print(f"Model saved to {path}")
     
@@ -460,8 +554,8 @@ class DiffusionModel(nn.Module):
         """Load model checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
         self.load_state_dict(checkpoint['model_state_dict'])
-        self.img_mean = checkpoint.get('img_mean', torch.tensor([0.0], device=self.device))
-        self.img_std = checkpoint.get('img_std', torch.tensor([1.0], device=self.device))
+        self.data_mean = checkpoint.get('data_mean', torch.tensor(0.1307, device=self.device))
+        self.data_std = checkpoint.get('data_std', torch.tensor(0.3081, device=self.device))
         self.eval()
         print(f"Model loaded from {path}")
 

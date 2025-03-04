@@ -119,11 +119,13 @@ def train_autoencoder(device, batch_size=128, epochs=5):
     return autoencoder
 
 
-def prepare_dataset(autoencoder, device, batch_size=64):
+def prepare_dataset(autoencoder, device, batch_size=64, image_size=28):
     """Prepare MNIST dataset with feature vectors for DDIM training."""
     # Load MNIST dataset
     transform = transforms.Compose([
         transforms.ToTensor(),
+        # Ensure consistent image size
+        transforms.Resize((image_size, image_size), antialias=True) 
     ])
     
     train_dataset = torchvision.datasets.MNIST(
@@ -213,6 +215,7 @@ def train_diffusion_model(train_loader, test_loader, test_features, device, epoc
         start_time = time.time()
         
         for batch_idx, (images, features) in enumerate(train_loader):
+            # Move data to device
             images = images.to(device)
             features = features.to(device)
             
