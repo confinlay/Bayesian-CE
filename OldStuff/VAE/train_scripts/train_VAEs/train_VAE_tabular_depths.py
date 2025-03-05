@@ -27,7 +27,7 @@ if dname == 'wine':
     from src.UCI_loader import load_UCI
     import torch
     from torchvision import datasets, transforms
-    from VAE.fc_gauss import VAE_gauss_net
+    from MyImplementation.VAEAC.fc_gauss import VAE_gauss_net
     from VAE.train import train_VAE
     from src.utils import Datafeed
 

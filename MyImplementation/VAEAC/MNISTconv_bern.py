@@ -2,22 +2,6 @@ from __future__ import division
 
 import sys
 import os
-from pathlib import Path
-
-# 1. Navigate up from current directory to project root
-current_dir = Path(__file__).parent.absolute()  # /MyImplementation/VAEAC
-project_root = current_dir.parent.parent  # Assuming structure: /root/MyImplementation/VAEAC
-
-# 2. Add old src directory to Python path
-old_src_path = project_root / "OldStuff"
-sys.path.insert(0, str(old_src_path))
-
-# 3. Verify imports work
-try:
-    from src.utils import BaseNet, to_variable  # Should now work
-    print("Successfully imported from src!")
-except ImportError:
-    print(f"Path configuration failed. Current sys.path: {sys.path}")
 
 
 import torch

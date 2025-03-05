@@ -2,7 +2,7 @@ from __future__ import division
 from src.utils import BaseNet, to_variable, cprint
 import torch
 from torch.distributions.normal import Normal
-from .fc_gauss import VAE_gauss
+from ...MyImplementation.VAEAC.fc_gauss import VAE_gauss
 import torch.backends.cudnn as cudnn
 from src.probability import normal_parse_params
 from src.radam import RAdam
