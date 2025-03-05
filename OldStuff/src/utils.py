@@ -44,17 +44,29 @@ def generate_ind_batch(nb_samples, batch_size, random=True, roundup=True):
         yield ind[i * batch_size: (i + 1) * batch_size]
 
 
-def to_variable(var=(), cuda=True, volatile=False):
-    out = []
-    for v in var:
-        if isinstance(v, np.ndarray):
-            v = torch.from_numpy(v).type(torch.FloatTensor)
-        if not v.is_cuda and cuda:
-            v = v.cuda()
-        if not isinstance(v, Variable):
-            v = Variable(v, volatile=volatile)
-        out.append(v)
-    return out
+def to_variable(var, device=None, requires_grad=False):
+    """
+    Updated version of to_variable that works with any device (CPU, MPS)
+    
+    Args:
+        var: Input variable or tuple of variables
+        device: torch.device to move the tensors to
+        requires_grad: Whether to enable gradient computation
+    """
+    if device is None:
+        # Default to MPS if available, otherwise CPU
+        device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+        
+    if isinstance(var, tuple):
+        return tuple(to_variable(v, device, requires_grad) for v in var)
+        
+    if isinstance(var, torch.Tensor):
+        var = var.to(device)
+    else:
+        var = torch.tensor(var, device=device)
+        
+    var.requires_grad = requires_grad
+    return var
 
 
 def cprint(color, text, **kwargs):
@@ -109,18 +121,19 @@ class Datafeed(data.Dataset):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-class BaseNet(object):
+class BaseNet(nn.Module):
     def __init__(self):
+        super(BaseNet, self).__init__()
         cprint('c', '\nNet:')
 
     def get_nb_parameters(self):
-        return np.sum(p.numel() for p in self.model.parameters())
+        return sum(p.numel() for p in self.parameters())
 
     def set_mode_train(self, train=True):
         if train:
-            self.model.train()
+            self.train()
         else:
-            self.model.eval()
+            self.eval()
 
     def update_lr(self, epoch, gamma=0.99):
         self.epoch += 1

@@ -1,0 +1,47 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# Data and model files (if they're large and don't need indexing)
+*.pkl
+*.h5
+*.pt
+*.pth
+model_saves/
+
+# Results and output directories
+results/
+clue-results/
+ReGene_Results/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Large datasets (if applicable)
+data/
+
+# Temporary files
+tmp/
+temp/ 
+
+OldStuff/
