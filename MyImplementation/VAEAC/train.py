@@ -16,13 +16,14 @@ def create_platform_safe_loader(dataset, batch_size, shuffle, device_type, **kwa
     """
     Creates a DataLoader that's appropriate for the platform and device
     """
-    # Determine number of workers based on platform and device
-    if device_type == 'mps':  # macOS with Metal
-        num_workers = 0  # No multiprocessing on MPS
-    elif device_type == 'cuda':  # CUDA device
-        num_workers = 4  # Or another appropriate number
-    else:  # CPU
-        num_workers = 0  # Safe default
+    # # Determine number of workers based on platform and device
+    # if device_type == 'mps':  # macOS with Metal
+    #     num_workers = 0  # No multiprocessing on MPS
+    # elif device_type == 'cuda':  # CUDA device
+    #     num_workers = 4  # Or another appropriate number
+    # else:  # CPU
+    #     num_workers = 0  # Safe default
+    num_workers = 0
         
     # Configure DataLoader
     return torch.utils.data.DataLoader(
@@ -94,14 +95,25 @@ def train_VAEAC(net, masker, name, batch_size, nb_epochs, trainset, valset, cuda
     nb_its_dev = 1
 
     tic0 = time.time()
+
+    # Detect if we're in a notebook environment
+    try:
+        from IPython import get_ipython
+        if get_ipython() is not None:
+            from tqdm.notebook import tqdm as notebook_tqdm
+        else:
+            from tqdm import tqdm as notebook_tqdm
+    except (ImportError, AttributeError):
+        from tqdm import tqdm as notebook_tqdm
+
     for i in range(epoch, nb_epochs):
         net.set_mode_train(True)
         tic = time.time()
         nb_samples = 0
         
-        # Add progress bar
+        # Add progress bar - use notebook version for better display
         n_batches = len(trainset) // batch_size
-        pbar = tqdm(total=n_batches, desc=f'Epoch {i+1}/{nb_epochs}')
+        pbar = notebook_tqdm(total=n_batches, desc=f'Epoch {i+1}/{nb_epochs}')
         
         for x, y in trainloader:
             if flat_ims:
