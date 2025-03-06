@@ -201,7 +201,7 @@ class FlexibleAutoencoder(nn.Module):
         return loss.item()
     
     def train_model(self, train_loader, num_epochs=10, lr=1e-3, weight_decay=1e-5, 
-                   val_loader=None, early_stopping_patience=5, verbose=True):
+                   val_loader=None, early_stopping_patience=5, verbose=True, save_path=None, model_name=None):
         """
         Train the autoencoder on a dataset
         
@@ -213,7 +213,8 @@ class FlexibleAutoencoder(nn.Module):
             val_loader: Optional DataLoader for validation data
             early_stopping_patience: Number of epochs to wait for improvement before stopping
             verbose: Whether to print progress
-            
+            save_path: Path to save the best model to (if None, model won't be saved to disk)
+            model_name: Name of the model (if None, model won't be saved to disk)   
         Returns:
             train_losses: List of training losses per epoch
             val_losses: List of validation losses per epoch (if val_loader provided)
@@ -226,6 +227,9 @@ class FlexibleAutoencoder(nn.Module):
         val_losses = []
         best_val_loss = float('inf')
         patience_counter = 0
+        early_stopped = False
+        if model_name is None:
+            model_name = "autoencoder_" + str(self.hidden_dim)
         
         for epoch in range(num_epochs):
             # Training phase
@@ -296,8 +300,14 @@ class FlexibleAutoencoder(nn.Module):
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
                     patience_counter = 0
-                    # Save best model
+                    # Save best model in memory
                     best_model_state = self.state_dict()
+                    
+                    # Save to disk if path provided
+                    if save_path:
+                        self.save(save_path + "/" + model_name + "_best_model.pth")
+                        if verbose:
+                            print(f"Saved best model to {save_path + "/" + model_name + "_best_model.pth"}")
                 else:
                     patience_counter += 1
                     if patience_counter >= early_stopping_patience:
@@ -305,6 +315,7 @@ class FlexibleAutoencoder(nn.Module):
                             print(f"Early stopping at epoch {epoch+1}")
                         # Restore best model
                         self.load_state_dict(best_model_state)
+                        early_stopped = True
                         break
                 
                 if verbose:
@@ -312,6 +323,22 @@ class FlexibleAutoencoder(nn.Module):
             else:
                 if verbose:
                     print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}")
+                # Save the latest model if no validation data is provided
+                if save_path:
+                    self.save(save_path + "/" + model_name + "_latest_model.pth")
+                    if verbose:
+                        print(f"Saved model to {save_path + "/" + model_name + "_latest_model.pth"}")
+        
+        # End of training - make sure we have the best model loaded
+        if val_loader is not None and not early_stopped:
+            # Load the best model if we didn't early stop
+            self.load_state_dict(best_model_state)
+        
+        # Final save if requested and we didn't already save the best model
+        if save_path and (val_loader is None or not early_stopped):
+            self.save(save_path + "/" + model_name + "_final_model.pth")
+            if verbose:
+                print(f"Saved final model to {save_path + "/" + model_name + "_final_model.pth"}")
         
         return train_losses, val_losses if val_loader is not None else None
     
@@ -359,7 +386,10 @@ class FlexibleAutoencoder(nn.Module):
     @classmethod
     def load(cls, path, device=None):
         """Load model from saved state"""
-        checkpoint = torch.load(path, map_location='cpu')
+        if device is None:
+            device = torch.device('cpu')
+            
+        checkpoint = torch.load(path, map_location=device)
         model = cls(
             hidden_dim=checkpoint['hidden_dim'],
             input_shape=checkpoint['input_shape'],

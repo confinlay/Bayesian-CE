@@ -86,7 +86,7 @@ class BayesianNeuralNetworkVI(nn.Module):
         output = self.backbone(x.to(self.device))
         # Handle both single tensor and tuple outputs
         if isinstance(output, tuple):
-            features, _ = output
+            _, features = output
         else:
             features = output
         return features
