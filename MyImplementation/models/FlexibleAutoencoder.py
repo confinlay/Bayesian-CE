@@ -200,6 +200,121 @@ class FlexibleAutoencoder(nn.Module):
         
         return loss.item()
     
+    def train_model(self, train_loader, num_epochs=10, lr=1e-3, weight_decay=1e-5, 
+                   val_loader=None, early_stopping_patience=5, verbose=True):
+        """
+        Train the autoencoder on a dataset
+        
+        Args:
+            train_loader: DataLoader for training data
+            num_epochs: Number of epochs to train for
+            lr: Learning rate
+            weight_decay: L2 regularization strength
+            val_loader: Optional DataLoader for validation data
+            early_stopping_patience: Number of epochs to wait for improvement before stopping
+            verbose: Whether to print progress
+            
+        Returns:
+            train_losses: List of training losses per epoch
+            val_losses: List of validation losses per epoch (if val_loader provided)
+        """
+        self.to(self.device)
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+        criterion = nn.MSELoss()
+        
+        train_losses = []
+        val_losses = []
+        best_val_loss = float('inf')
+        patience_counter = 0
+        
+        for epoch in range(num_epochs):
+            # Training phase
+            self.train()
+            epoch_loss = 0.0
+            num_batches = 0
+            
+            for batch in train_loader:
+                # Handle different data formats (tuple vs tensor)
+                if isinstance(batch, (list, tuple)):
+                    x = batch[0]  # Assume first element is the data
+                else:
+                    x = batch
+                
+                x = x.to(self.device)
+                
+                # Forward pass
+                recon, _ = self(x)
+                
+                # Calculate loss
+                x_flat = x.view(x.size(0), -1)
+                recon_flat = recon.view(recon.size(0), -1)
+                loss = criterion(recon_flat, x_flat)
+                
+                # Backward pass and optimization
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                epoch_loss += loss.item()
+                num_batches += 1
+            
+            # Calculate average epoch loss
+            avg_train_loss = epoch_loss / num_batches
+            train_losses.append(avg_train_loss)
+            
+            # Validation phase if validation data is provided
+            if val_loader is not None:
+                self.eval()
+                val_loss = 0.0
+                num_val_batches = 0
+                
+                with torch.no_grad():
+                    for batch in val_loader:
+                        # Handle different data formats
+                        if isinstance(batch, (list, tuple)):
+                            x = batch[0]
+                        else:
+                            x = batch
+                        
+                        x = x.to(self.device)
+                        
+                        # Forward pass
+                        recon, _ = self(x)
+                        
+                        # Calculate loss
+                        x_flat = x.view(x.size(0), -1)
+                        recon_flat = recon.view(recon.size(0), -1)
+                        loss = criterion(recon_flat, x_flat)
+                        
+                        val_loss += loss.item()
+                        num_val_batches += 1
+                
+                avg_val_loss = val_loss / num_val_batches
+                val_losses.append(avg_val_loss)
+                
+                # Early stopping check
+                if avg_val_loss < best_val_loss:
+                    best_val_loss = avg_val_loss
+                    patience_counter = 0
+                    # Save best model
+                    best_model_state = self.state_dict()
+                else:
+                    patience_counter += 1
+                    if patience_counter >= early_stopping_patience:
+                        if verbose:
+                            print(f"Early stopping at epoch {epoch+1}")
+                        # Restore best model
+                        self.load_state_dict(best_model_state)
+                        break
+                
+                if verbose:
+                    print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
+            else:
+                if verbose:
+                    print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}")
+        
+        return train_losses, val_losses if val_loader is not None else None
+    
     @torch.no_grad()
     def evaluate(self, x, criterion=None):
         """
