@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
+import glob
 
 from models.FlexibleAutoencoder import FlexibleAutoencoder
 from models.BNN_VI import BayesianNeuralNetworkVI
@@ -469,3 +470,186 @@ def run_multi_model_clue(
         results['fig'] = fig
     
     return results
+
+def load_pretrained_models(
+    dims=[8, 16, 32, 64, 128],
+    include_raw=True,
+    base_save_dir="../model_saves/multi_dim",
+    device=None
+):
+    """
+    Load pretrained models from saved files into the same data structure that
+    train_multiple_models returns and that run_multi_model_clue expects.
+    
+    Args:
+        dims: List of hidden dimensions to load
+        include_raw: Whether to try loading a raw BNN model
+        base_save_dir: Base directory where models were saved
+        device: Device to load models to ('cpu', 'cuda', or 'mps')
+        
+    Returns:
+        dict: Dictionary containing loaded models:
+            - 'autoencoders': Dict mapping dimensions to autoencoder models
+            - 'bnn_models': Dict mapping dimensions to BNN models
+            - 'raw_bnn': BNN trained on raw input (if include_raw=True and file exists)
+    """
+    # Set up device if not provided
+    if device is None:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    
+    print(f"Loading models to device: {device}")
+    
+    # Create directory paths
+    ae_dir = f"{base_save_dir}/autoencoders"
+    bnn_dir = f"{base_save_dir}/BNNs"
+    
+    # Check if directories exist
+    if not os.path.exists(ae_dir):
+        raise FileNotFoundError(f"Autoencoder directory not found: {ae_dir}")
+    if not os.path.exists(bnn_dir):
+        raise FileNotFoundError(f"BNN directory not found: {bnn_dir}")
+    
+    # Initialize result dictionary with same structure as train_multiple_models
+    result = {
+        'autoencoders': {},
+        'bnn_models': {},
+        'raw_bnn': None
+    }
+    
+    # Load autoencoder models
+    for hidden_dim in dims:
+        # Look for best model first, then final, then latest
+        ae_best_path = f"{ae_dir}/autoencoder_dim{hidden_dim}_best_model.pth"
+        ae_final_path = f"{ae_dir}/autoencoder_dim{hidden_dim}_final_model.pth"
+        ae_latest_path = f"{ae_dir}/autoencoder_dim{hidden_dim}_latest_model.pth"
+        
+        # Try loading in order of preference
+        if os.path.exists(ae_best_path):
+            ae_path = ae_best_path
+        elif os.path.exists(ae_final_path):
+            ae_path = ae_final_path
+        elif os.path.exists(ae_latest_path):
+            ae_path = ae_latest_path
+        else:
+            print(f"Warning: No autoencoder model found for dimension {hidden_dim}")
+            continue
+        
+        try:
+            print(f"Loading autoencoder with dimension {hidden_dim} from {ae_path}")
+            autoencoder = FlexibleAutoencoder.load(ae_path, device=device)
+            result['autoencoders'][hidden_dim] = autoencoder
+        except Exception as e:
+            print(f"Error loading autoencoder dim={hidden_dim}: {e}")
+    
+    # Load BNN models
+    for hidden_dim in dims:
+        if hidden_dim not in result['autoencoders']:
+            print(f"Skipping BNN for dimension {hidden_dim} since autoencoder wasn't loaded")
+            continue
+        
+        # Get the corresponding autoencoder
+        autoencoder = result['autoencoders'][hidden_dim]
+        
+        # Create directory path where BNN model would be saved
+        bnn_model_dir = f"{bnn_dir}/BNN_dim{hidden_dim}_models"
+        
+        if not os.path.exists(bnn_model_dir):
+            print(f"Warning: BNN model directory not found for dimension {hidden_dim}: {bnn_model_dir}")
+            continue
+        
+        # Find the latest BNN checkpoint
+        bnn_checkpoints = glob.glob(f"{bnn_model_dir}/BNN_VI_best_*.pt")
+        if not bnn_checkpoints:
+            print(f"Warning: No BNN checkpoint found for dimension {hidden_dim}")
+            continue
+        
+        # Get the latest checkpoint
+        bnn_checkpoint = sorted(bnn_checkpoints)[-1]
+        
+        try:
+            # Create encoder backbone
+            class EncoderBackbone(torch.nn.Module):
+                def __init__(self, autoencoder):
+                    super().__init__()
+                    self.autoencoder = autoencoder
+                    
+                def forward(self, x):
+                    return self.autoencoder.encode(x)
+            
+            encoder_backbone = EncoderBackbone(autoencoder)
+            
+            # Create BNN model with the right structure
+            bnn_model = BayesianNeuralNetworkVI(
+                backbone=encoder_backbone,
+                input_dim=hidden_dim,
+                output_dim=10,  # MNIST has 10 classes
+                hidden_dim=128,
+                prior_mu=0.0,
+                prior_sigma=0.1,
+                kl_weight=0.1,
+                device=device
+            )
+            
+            # Load checkpoint
+            print(f"Loading BNN with dimension {hidden_dim} from {bnn_checkpoint}")
+            bnn_model.load_checkpoint(bnn_checkpoint)
+            result['bnn_models'][hidden_dim] = bnn_model
+        except Exception as e:
+            print(f"Error loading BNN dim={hidden_dim}: {e}")
+    
+    # Optionally load raw BNN
+    if include_raw:
+        raw_bnn_model_dir = f"{bnn_dir}/BNN_raw_input_models"
+        
+        if os.path.exists(raw_bnn_model_dir):
+            # Find the latest raw BNN checkpoint
+            raw_bnn_checkpoints = glob.glob(f"{raw_bnn_model_dir}/BNN_VI_best_*.pt")
+            
+            if raw_bnn_checkpoints:
+                # Get the latest checkpoint
+                raw_bnn_checkpoint = sorted(raw_bnn_checkpoints)[-1]
+                
+                try:
+                    # Create identity backbone
+                    class IdentityBackbone(torch.nn.Module):
+                        def __init__(self):
+                            super().__init__()
+                            
+                        def forward(self, x):
+                            if len(x.shape) > 2:
+                                return x.view(x.size(0), -1)
+                            return x
+                    
+                    raw_backbone = IdentityBackbone()
+                    
+                    # Create raw BNN model
+                    raw_bnn = BayesianNeuralNetworkVI(
+                        backbone=raw_backbone,
+                        input_dim=784,  # Flattened MNIST image
+                        output_dim=10,
+                        hidden_dim=128,
+                        prior_mu=0.0,
+                        prior_sigma=0.1,
+                        kl_weight=0.1,
+                        device=device
+                    )
+                    
+                    # Load checkpoint
+                    print(f"Loading raw BNN from {raw_bnn_checkpoint}")
+                    raw_bnn.load_checkpoint(raw_bnn_checkpoint)
+                    result['raw_bnn'] = raw_bnn
+                except Exception as e:
+                    print(f"Error loading raw BNN: {e}")
+    
+    # Summary
+    print("\nLoaded models summary:")
+    print(f"Autoencoders: {list(result['autoencoders'].keys())}")
+    print(f"BNN models: {list(result['bnn_models'].keys())}")
+    print(f"Raw BNN: {'Loaded' if result['raw_bnn'] is not None else 'Not loaded'}")
+    
+    return result

@@ -34,13 +34,18 @@ class Classifier(nn.Module):
         y = self.classifier(z)
         return z, y  # Return latent representation and class prediction
     
-    def train_classifier(self, train_loader, num_epochs=5, lr=0.001):
+    def train_classifier(self, train_loader, num_epochs=5, lr=0.001, patience=5, model_saves_dir=None):
         """ Train the classifier """
         self.to(self.device)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(self.parameters(), lr=lr)
-
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+        
+        best_loss = float('inf')
+        early_stopping_counter = 0
+        
         for epoch in range(num_epochs):
+            running_loss = 0.0
             for images, labels in train_loader:
                 images, labels = images.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
@@ -48,7 +53,31 @@ class Classifier(nn.Module):
                 loss = criterion(y_pred, labels)
                 loss.backward()
                 optimizer.step()
-            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+                running_loss += loss.item()
+            
+            epoch_loss = running_loss / len(train_loader)
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+            
+            # Learning rate scheduling
+            scheduler.step(epoch_loss)
+            
+            # Early stopping
+            if epoch_loss < best_loss:
+                best_loss = epoch_loss
+                early_stopping_counter = 0
+                
+                # Save the best model
+                if model_saves_dir:
+                    import os
+                    os.makedirs(model_saves_dir, exist_ok=True)
+                    save_path = os.path.join(model_saves_dir, f"classifier_dominated_classifier_{self.encoder[-2].out_features}.pt")
+                    torch.save(self.state_dict(), save_path)
+                    print(f"Saved best model to: {save_path}")
+            else:
+                early_stopping_counter += 1
+                if early_stopping_counter >= patience:
+                    print(f"Early stopping triggered after {epoch+1} epochs")
+                    break
     
 class Decoder(nn.Module):
     """
@@ -85,14 +114,19 @@ class Decoder(nn.Module):
         x = self.deconv(x)
         return x
     
-    def train_decoder(self, train_loader, classifier, num_epochs=5, lr=0.001):
+    def train_decoder(self, train_loader, classifier, num_epochs=5, lr=0.001, patience=5, model_saves_dir=None):
         """ Train the decoder using the classifier's latent space """
         self.to(self.device)
         classifier.to(self.device)
         decoder_optimizer = optim.Adam(self.parameters(), lr=lr)
         reconstruction_loss = nn.MSELoss()
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(decoder_optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+        
+        best_loss = float('inf')
+        early_stopping_counter = 0
 
         for epoch in range(num_epochs):
+            running_loss = 0.0
             for images, _ in train_loader:
                 images = images.to(self.device)
                 z, _ = classifier(images)
@@ -101,19 +135,33 @@ class Decoder(nn.Module):
                 decoder_optimizer.zero_grad()
                 loss.backward()
                 decoder_optimizer.step()
-            print(f"Decoder Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
-    
-    def convex_combine(self, z1, z2, alphas = [0.5]):
-        """ Convex combinations of two latent representations """
-        x_combined = []
+                running_loss += loss.item()
+            
+            epoch_loss = running_loss / len(train_loader)
+            print(f"Decoder Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+            
+            # Learning rate scheduling
+            scheduler.step(epoch_loss)
+            
+            # Early stopping
+            if epoch_loss < best_loss:
+                best_loss = epoch_loss
+                early_stopping_counter = 0
+                
+                # Save the best model
+                if model_saves_dir:
+                    import os
+                    os.makedirs(model_saves_dir, exist_ok=True)
+                    save_path = os.path.join(model_saves_dir, f"classifier_dominated_decoder_{self.fc[0].in_features}.pt")
+                    torch.save(self.state_dict(), save_path)
+                    print(f"Saved best model to: {save_path}")
+            else:
+                early_stopping_counter += 1
+                if early_stopping_counter >= patience:
+                    print(f"Early stopping triggered after {epoch+1} epochs")
+                    break
 
-        for alpha in alphas:
-            z_combined = alpha * z1 + (1 - alpha) * z2
-            x_combined.append(self(z_combined))
-
-        return x_combined
-
-def train_joint(classifier, decoder, train_loader, num_epochs=5, lr=0.001, lambda_recon=0.5):
+def train_joint(classifier, decoder, train_loader, num_epochs=5, lr=0.001, lambda_recon=0.5, patience=5, model_saves_dir=None):
     """Train both classifier and decoder jointly with combined loss"""
     classifier.to(classifier.device)
     decoder.to(decoder.device)
@@ -121,10 +169,14 @@ def train_joint(classifier, decoder, train_loader, num_epochs=5, lr=0.001, lambd
     # Setup optimizers
     classifier_optimizer = optim.Adam(classifier.parameters(), lr=lr)
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(classifier_optimizer, mode='min', factor=0.5, patience=2, verbose=True)
     
     # Loss functions
     classification_criterion = nn.CrossEntropyLoss()
     reconstruction_criterion = nn.MSELoss()
+    
+    best_loss = float('inf')
+    early_stopping_counter = 0
     
     for epoch in range(num_epochs):
         total_loss = 0.0
@@ -154,12 +206,35 @@ def train_joint(classifier, decoder, train_loader, num_epochs=5, lr=0.001, lambd
             classifier_optimizer.step()
             decoder_optimizer.step()
             
+        epoch_loss = total_loss / len(train_loader)
         print(f"Epoch [{epoch+1}/{num_epochs}], "
               f"Total Loss: {total_loss.item():.4f}, "
               f"Classification Loss: {classification_loss.item():.4f}, "
               f"Reconstruction Loss: {reconstruction_loss.item():.4f}")
         
-def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001):
+        # Learning rate scheduling
+        scheduler.step(epoch_loss)
+        
+        # Early stopping
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            early_stopping_counter = 0
+            
+            # Save the best model
+            if model_saves_dir:
+                import os
+                os.makedirs(model_saves_dir, exist_ok=True)
+                save_path = os.path.join(model_saves_dir, f"joint_model_{classifier.encoder[-2].out_features}.pt")
+                torch.save(classifier.state_dict(), save_path)
+                torch.save(decoder.state_dict(), save_path)
+                print(f"Saved best model to: {save_path}")
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= patience:
+                print(f"Early stopping triggered after {epoch+1} epochs")
+                break
+
+def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001, patience=5, model_saves_dir=None):
     """Train classifier encoder and decoder to minimize reconstruction loss"""
     classifier.to(classifier.device)
     decoder.to(decoder.device)
@@ -167,9 +242,13 @@ def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001)
     # Setup optimizer
     params = list(classifier.parameters()) + list(decoder.parameters()) 
     optimizer = optim.Adam(params, lr=lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
     
     # Loss function
     reconstruction_criterion = nn.MSELoss()
+    
+    best_loss = float('inf')
+    early_stopping_counter = 0
     
     for epoch in range(num_epochs):
         total_loss = 0.0
@@ -195,10 +274,29 @@ def train_autoencoder(classifier, decoder, train_loader, num_epochs=5, lr=0.001)
         avg_loss = total_loss / len(train_loader)
         print(f"Epoch [{epoch+1}/{num_epochs}], Average Reconstruction Loss: {avg_loss:.4f}")
 
-        # Print progress similar to train_classifier
-        print(f"Epoch [{epoch+1}/{num_epochs}], Total Loss: {total_loss:.4f}")
+        # Learning rate scheduling
+        scheduler.step(avg_loss)
+        
+        # Early stopping
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            early_stopping_counter = 0
+            
+            # Save the best model
+            if model_saves_dir:
+                import os
+                os.makedirs(model_saves_dir, exist_ok=True)
+                save_path = os.path.join(model_saves_dir, f"autoencoder_{classifier.encoder[-2].out_features}.pt")
+                torch.save(classifier.state_dict(), save_path)
+                torch.save(decoder.state_dict(), save_path)
+                print(f"Saved best model to: {save_path}")
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= patience:
+                print(f"Early stopping triggered after {epoch+1} epochs")
+                break
 
-def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001):
+def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001, patience=5, model_saves_dir=None):
     """Train only the classification layer, keeping encoder weights frozen"""
     classifier.to(classifier.device)
     # Freeze encoder weights
@@ -207,8 +305,13 @@ def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001):
     # Only optimize classifier layer
     optimizer = optim.Adam(classifier.classifier.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+    
+    best_loss = float('inf')
+    early_stopping_counter = 0
     
     for epoch in range(num_epochs):
+        running_loss = 0.0
         for images, labels in train_loader:
             images, labels = images.to(classifier.device), labels.to(classifier.device)
             optimizer.zero_grad()
@@ -216,7 +319,32 @@ def train_classifier_only(classifier, train_loader, num_epochs=5, lr=0.001):
             loss = criterion(y_pred, labels)
             loss.backward()
             optimizer.step()
+            running_loss += loss.item()
             
+        epoch_loss = running_loss / len(train_loader)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+        
+        # Learning rate scheduling
+        scheduler.step(epoch_loss)
+        
+        # Early stopping
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            early_stopping_counter = 0
+            
+            # Save the best model
+            if model_saves_dir:
+                import os
+                os.makedirs(model_saves_dir, exist_ok=True)
+                save_path = os.path.join(model_saves_dir, f"classifier_only_{classifier.encoder[-2].out_features}.pt")
+                torch.save(classifier.state_dict(), save_path)
+                print(f"Saved best model to: {save_path}")
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= patience:
+                print(f"Early stopping triggered after {epoch+1} epochs")
+                break
+    
     # Unfreeze encoder for future use
     for param in classifier.encoder.parameters():
         param.requires_grad = True
