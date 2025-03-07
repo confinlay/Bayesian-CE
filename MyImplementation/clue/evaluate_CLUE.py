@@ -7,7 +7,7 @@ def evaluate_clue_counterfactuals(
     vae, 
     uncertainty_weight=1.0,
     distance_weight=0.005,
-    lr=0.1,
+    lr=0.01,
     steps=200,
     device='cuda',
     bayesian=True,
@@ -52,6 +52,9 @@ def evaluate_clue_counterfactuals(
     likelihood_counterfactual = []
     likelihood_differences = []
     likelihood_ratios = []
+    realism_original = []
+    realism_counterfactual = []
+    realism_differences = []
     
     # Lists to store individual results
     individual_results = []
@@ -161,6 +164,15 @@ def evaluate_clue_counterfactuals(
             ratio = np.exp(original_ll) / np.exp(counterfactual_ll)
             likelihood_ratios.append(ratio)
             
+            # Calculate realism scores
+            original_realism = vae.compute_realism_score(image).item()
+            counterfactual_realism = vae.compute_realism_score(clue_recon).item()
+            realism_diff = original_realism - counterfactual_realism
+            
+            realism_original.append(original_realism)
+            realism_counterfactual.append(counterfactual_realism)
+            realism_differences.append(realism_diff)
+            
             # Store individual results
             individual_results.append({
                 'image_index': i,
@@ -179,6 +191,9 @@ def evaluate_clue_counterfactuals(
                 'counterfactual_log_likelihood': counterfactual_ll,
                 'log_likelihood_difference': likelihood_diff,
                 'likelihood_ratio': ratio,
+                'original_realism_score': original_realism,
+                'counterfactual_realism_score': counterfactual_realism,
+                'realism_score_difference': realism_diff,
                 'original_class_probs': original_mean_probs_latent.cpu().numpy(),
                 'counterfactual_class_probs': explained_mean_probs_latent.cpu().numpy()
             })
@@ -194,6 +209,10 @@ def evaluate_clue_counterfactuals(
         'median_log_likelihood_difference': np.median(likelihood_differences),
         'avg_likelihood_ratio': np.mean(likelihood_ratios),
         'median_likelihood_ratio': np.median(likelihood_ratios),
+        'avg_original_realism_score': np.mean(realism_original),
+        'avg_counterfactual_realism_score': np.mean(realism_counterfactual),
+        'avg_realism_score_difference': np.mean(realism_differences),
+        'median_realism_score_difference': np.median(realism_differences),
         'individual_results': individual_results
     }
     
@@ -209,19 +228,22 @@ def evaluate_clue_counterfactuals(
         print(f"Median log likelihood difference: {results['median_log_likelihood_difference']:.3f}")
         print(f"Average likelihood ratio: {results['avg_likelihood_ratio']:.3f}")
         print(f"Median likelihood ratio: {results['median_likelihood_ratio']:.3f}")
+        print(f"Average original realism score: {results['avg_original_realism_score']:.3f}")
+        print(f"Average counterfactual realism score: {results['avg_counterfactual_realism_score']:.3f}")
+        print(f"Average realism score difference: {results['avg_realism_score_difference']:.3f}")
+        print(f"Median realism score difference: {results['median_realism_score_difference']:.3f}")
     
     return results
 
 
-def find_uncertain_images(model, dataset, n=50, batch_size=64, device='cuda'):
+def find_uncertain_images(model, dataloader, n=50, device='cuda'):
     """
     Find the n most uncertain images in a dataset according to a Bayesian model.
     
     Args:
         model: Bayesian model with predict_with_uncertainty method
-        dataset: Dataset to evaluate
+        dataloader: DataLoader for the dataset to evaluate
         n: Number of uncertain images to return
-        batch_size: Batch size for evaluation
         device: Device to run computation on
         
     Returns:
@@ -230,11 +252,6 @@ def find_uncertain_images(model, dataset, n=50, batch_size=64, device='cuda'):
     """
     import torch
     import numpy as np
-    
-    # Create dataloader
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size, shuffle=False, num_workers=2
-    )
     
     # Get uncertainty scores for all data points
     uncertainties = []
@@ -249,7 +266,7 @@ def find_uncertain_images(model, dataset, n=50, batch_size=64, device='cuda'):
             
             # Store total uncertainties and indices
             uncertainties.extend(uncertainty_dict['total_entropy'].cpu().numpy())
-            indices.extend(range(i*batch_size, min((i+1)*batch_size, len(dataset))))
+            indices.extend(range(i * len(images), i * len(images) + len(images)))
     
     # Convert to numpy arrays
     uncertainties = np.array(uncertainties)
@@ -263,7 +280,7 @@ def find_uncertain_images(model, dataset, n=50, batch_size=64, device='cuda'):
     uncertain_indices = sorted_indices[:n]
     
     # Get the corresponding images
-    uncertain_images = torch.stack([dataset[idx][0] for idx in uncertain_indices])
+    uncertain_images = torch.stack([dataloader.dataset[idx][0] for idx in uncertain_indices])
     
     return uncertain_images, uncertain_indices
 
@@ -271,14 +288,6 @@ def visualize_counterfactual_results(results, n=5, figsize=(18, 12)):
     """
     Visualize counterfactual results with original and counterfactual images,
     along with metrics for each.
-    
-    Args:
-        results: Results dictionary from evaluate_clue_counterfactuals
-        n: Number of examples to show (default: 5)
-        figsize: Size of the figure
-        
-    Returns:
-        fig: Matplotlib figure
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -290,61 +299,81 @@ def visualize_counterfactual_results(results, n=5, figsize=(18, 12)):
     sorted_indices = np.argsort([-r['latent_entropy_reduction'] for r in results['individual_results']])
     selected_indices = sorted_indices[:n]
     
-    fig, axs = plt.subplots(n, 4, figsize=figsize)
+    fig, axs = plt.subplots(n, 5, figsize=figsize)
+    
+    # Print aggregate results first
+    print(f"\nAggregate Results over {len(results['individual_results'])} images:")
+    print(f"Average latent entropy reduction: {results['avg_latent_entropy_reduction']:.3f}")
+    print(f"Average reconstruction entropy reduction: {results['avg_recon_entropy_reduction']:.3f}")
+    print(f"Average latent distance: {results['avg_latent_distance']:.3f}")
+    print(f"Average log likelihood difference: {results['avg_log_likelihood_difference']:.3f}")
+    print(f"Average realism score difference: {results['avg_realism_score_difference']:.3f}\n")
     
     for i, idx in enumerate(selected_indices):
         result = results['individual_results'][idx]
         
+        # Print individual result details
+        print(f"\nExample {i+1} (Image Index: {result['image_index']}):")
+        print(f"Latent entropy reduction: {result['latent_entropy_reduction']:.3f}")
+        print(f"Latent distance: {result['latent_distance']:.3f}")
+        print(f"Log likelihood difference: {result['log_likelihood_difference']:.3f}")
+        
         # Original image
         axs[i, 0].imshow(result['original_image'][0, 0].numpy(), cmap='gray')
-        axs[i, 0].set_title(f"Original\nEntropy: {result['original_entropy_latent']:.3f}\nLog-likelihood: {result['original_log_likelihood']:.1f}")
+        axs[i, 0].set_title(f"Original\nEntropy: {result['original_entropy_latent']:.3f}\nLL: {result['original_log_likelihood']:.1f}")
         
         # Counterfactual image
         axs[i, 1].imshow(result['counterfactual_image'][0, 0].numpy(), cmap='gray')
-        axs[i, 1].set_title(f"Counterfactual\nEntropy: {result['counterfactual_entropy_latent']:.3f}\nLog-likelihood: {result['counterfactual_log_likelihood']:.1f}")
+        axs[i, 1].set_title(f"Counterfactual\nEntropy: {result['counterfactual_entropy_latent']:.3f}\nLL: {result['counterfactual_log_likelihood']:.1f}")
         
         # Difference map
         diff = result['counterfactual_image'][0, 0].numpy() - result['original_image'][0, 0].numpy()
         axs[i, 2].imshow(diff, cmap='coolwarm', vmin=-1, vmax=1)
         axs[i, 2].set_title(f"Difference\nDistance: {result['latent_distance']:.3f}\nLL-diff: {result['log_likelihood_difference']:.1f}")
         
+        # Original reconstruction (using counterfactual_image as it's already the reconstruction)
+        axs[i, 3].imshow(result['counterfactual_image'][0, 0].numpy(), cmap='gray')
+        axs[i, 3].set_title("Original Reconstruction")
+        
         # Class probability changes
         top_indices = np.argsort(-result['counterfactual_class_probs'][0])[:5]
-        classes = np.arange(len(result['original_class_probs'][0]))
         orig_probs = result['original_class_probs'][0][top_indices]
         new_probs = result['counterfactual_class_probs'][0][top_indices]
         
         x = np.arange(len(top_indices))
         width = 0.35
-        axs[i, 3].bar(x - width/2, orig_probs, width, label='Original')
-        axs[i, 3].bar(x + width/2, new_probs, width, label='Counterfactual')
-        axs[i, 3].set_xticks(x)
-        axs[i, 3].set_xticklabels(top_indices)
-        axs[i, 3].set_title("Top class probabilities")
+        axs[i, 4].bar(x - width/2, orig_probs, width, label='Original')
+        axs[i, 4].bar(x + width/2, new_probs, width, label='Counterfactual')
+        axs[i, 4].set_xticks(x)
+        axs[i, 4].set_xticklabels(top_indices)
+        axs[i, 4].set_title("Top class probabilities")
+        
+        # Only add legend and labels to the first row
         if i == 0:
-            axs[i, 3].legend()
+            axs[i, 4].legend()
+            axs[i, 4].set_xlabel("Digit Class")
+            axs[i, 4].set_ylabel("Probability")
     
+    # Turn off axes for all subplots except probability plots
     for ax in axs.flat:
         ax.set_axis_off()
     
-    axs[0, 0].set_axis_on()
-    axs[0, 0].set_xticks([])
-    axs[0, 0].set_yticks([])
+    # Turn on axes and labels for the first row
+    for j in range(5):
+        axs[0, j].set_axis_on()
+        axs[0, j].set_xticks([])
+        axs[0, j].set_yticks([])
+    
+    # Set column labels for the first row
     axs[0, 0].set_xlabel("Original")
-    
-    axs[0, 1].set_axis_on()
-    axs[0, 1].set_xticks([])
-    axs[0, 1].set_yticks([])
     axs[0, 1].set_xlabel("Counterfactual")
-    
-    axs[0, 2].set_axis_on()
-    axs[0, 2].set_xticks([])
-    axs[0, 2].set_yticks([])
     axs[0, 2].set_xlabel("Difference")
+    axs[0, 3].set_xlabel("Original Reconstruction")
     
-    axs[0, 3].set_axis_on()
-    axs[0, 3].set_xlabel("Digit Class")
-    axs[0, 3].set_ylabel("Probability")
+    # Set axes for probability plot in first row
+    axs[0, 4].set_axis_on()
+    axs[0, 4].set_xlabel("Digit Class")
+    axs[0, 4].set_ylabel("Probability")
     
     plt.tight_layout()
     return fig
@@ -494,19 +523,27 @@ def evaluate_single_clue_counterfactual(
         original_pred = original_mean_probs_recon.argmax(dim=1).item()
         explained_pred = explained_mean_probs_recon.argmax(dim=1).item()
         
-        # Calculate VAE likelihood estimates if VAE is provided
+        # Calculate VAE likelihood estimates and realism scores if VAE is provided
         likelihood_metrics = {}
         if vae is not None:
             original_ll = vae.log_likelihood(image, k=k_samples).item()
             counterfactual_ll = vae.log_likelihood(clue_recon, k=k_samples).item()
             likelihood_diff = original_ll - counterfactual_ll
-            likelihood_ratio = np.exp(original_ll) / np.exp(counterfactual_ll)
+            likelihood_ratio = np.exp(counterfactual_ll) / np.exp(original_ll)
+            
+            # Calculate realism scores
+            original_realism = vae.compute_realism_score(image).item()
+            counterfactual_realism = vae.compute_realism_score(clue_recon).item()
+            realism_diff = original_realism - counterfactual_realism
             
             likelihood_metrics = {
                 'original_log_likelihood': original_ll,
                 'counterfactual_log_likelihood': counterfactual_ll,
                 'log_likelihood_difference': likelihood_diff,
-                'likelihood_ratio': likelihood_ratio
+                'likelihood_ratio': likelihood_ratio,
+                'original_realism_score': original_realism,
+                'counterfactual_realism_score': counterfactual_realism,
+                'realism_score_difference': realism_diff
             }
     
     # Create visualization
@@ -600,6 +637,9 @@ def evaluate_single_clue_counterfactual(
             print(f"Original log-likelihood: {results['original_log_likelihood']:.2f}")
             print(f"Counterfactual log-likelihood: {results['counterfactual_log_likelihood']:.2f}")
             print(f"Log-likelihood difference: {results['log_likelihood_difference']:.2f}")
-            print(f"Likelihood ratio: {results['likelihood_ratio']:.2f}x less likely")
+            print(f"Likelihood ratio: {results['likelihood_ratio']:.2f}x more likely")
+            print(f"Original realism score: {results['original_realism_score']:.3f}")
+            print(f"Counterfactual realism score: {results['counterfactual_realism_score']:.3f}")
+            print(f"Realism score difference: {results['realism_score_difference']:.3f}")
     
     return results, fig
