@@ -14,17 +14,26 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.device = device
         self.encoder = nn.Sequential(
+            # First block: 28×28×1 -> 14×14×32
             nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2),  # 14x14
+            nn.MaxPool2d(2, 2),
+            
+            # Second block: 14×14×32 -> 7×7×64
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2),  # 7x7
+            nn.MaxPool2d(2, 2),
+            
+            # Third block: 7×7×64 -> 4×4×128
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2),  # 3x3
+            nn.MaxPool2d(2, 2, padding=1),  # Padding to get 4×4 output
+            
             nn.Flatten(),
-            nn.Linear(128 * 3 * 3, latent_dim),
+            nn.Linear(128 * 4 * 4, latent_dim),
             nn.ReLU()
         )
         self.classifier = nn.Linear(latent_dim, num_classes)
@@ -83,34 +92,37 @@ class Decoder(nn.Module):
     """
     Decoder model which generates an image from the latent representation of the classifier.
     """
-    def __init__(self, latent_dim=32, device='cpu'):
+    def __init__(self, latent_dim=128, device='cpu'):
         super(Decoder, self).__init__()
         self.device = device
+        
+        # Project from latent space to match flattened dimensions (128*4*4)
         self.fc = nn.Sequential(
-            nn.Linear(latent_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, 32 * 7 * 7),
+            nn.Linear(latent_dim, 128 * 4 * 4),
             nn.ReLU()
         )
+        
+        # Mirrored convolutional structure to match the encoder
         self.deconv = nn.Sequential(
-            nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(),
+            # First upsampling block: 4×4×128 -> 7×7×64
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=0),
             nn.BatchNorm2d(64),
-            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
+            
+            # Second upsampling block: 7×7×64 -> 14×14×32
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm2d(32),
-            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(16),
-            nn.ConvTranspose2d(16, 1, kernel_size=3, stride=1, padding=1),
-            nn.Sigmoid()  # Normalize output to [0,1]
+            
+            # Third upsampling block: 14×14×32 -> 28×28×1
+            nn.ConvTranspose2d(32, 1, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sigmoid()  # Final activation for pixel values in [0,1]
         )
+        
         self.to(device)
 
     def forward(self, z):
-        x = self.fc(z).view(-1, 32, 7, 7)
+        x = self.fc(z).view(-1, 128, 4, 4)
         x = self.deconv(x)
         return x
     
