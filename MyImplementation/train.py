@@ -389,8 +389,8 @@ def train_backbone(net, name, batch_size, nb_epochs, trainset, valset, device,
     return cost_train[:i+1], cost_dev[:i+1], err_train[:i+1], err_dev[:i+1], best_err
 
 
-def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, valset, device,
-                              lr=1e-3, patience=5, nb_its_dev=1, model_saves_dir=None):
+def train_BLL_VI_classification(net, batch_size, nb_epochs, trainset, valset, device,
+                              lr=1e-3, patience=5, nb_its_dev=1, model_saves_dir=None, model_name=None):
     """
     Train a Bayesian Last Layer using Variational Inference for classification tasks.
     
@@ -406,11 +406,10 @@ def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, vals
         patience: Early stopping patience
         nb_its_dev: How often to evaluate on validation set
         model_saves_dir: Directory to save models and results
+        model_name: Optional name to append to the saved model file
     """
-    # Create directories for saving models and results
-    models_dir = os.path.join(model_saves_dir, name + '_models')
-    results_dir = os.path.join(model_saves_dir, name + '_results')
-    os.makedirs(models_dir, exist_ok=True)
+    # Create directory for results
+    results_dir = os.path.join(model_saves_dir, 'BLL_VI_results')
     os.makedirs(results_dir, exist_ok=True)
 
     # Set up data loaders
@@ -534,7 +533,13 @@ def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, vals
     # Restore best model
     net.load_state_dict(best_state)
     rand_id = np.random.randint(0, 10000)
-    save_path = f'{models_dir}/BLL_VI_best_{rand_id}.pt'
+    
+    # Use model_name if provided
+    if model_name:
+        save_path = f'{model_saves_dir}/BLL_VI_{model_name}_{rand_id}.pt'
+    else:
+        save_path = f'{model_saves_dir}/BLL_VI_best_{rand_id}.pt'
+        
     net.save_checkpoint(save_path)
     print(f'Saved best model to: {save_path}')
 
@@ -563,7 +568,7 @@ def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, vals
     ax2.set_title('KL Divergence')
     
     plt.tight_layout()
-    plt.savefig(results_dir + '/vi_training.png')
+    plt.savefig(os.path.join(results_dir, model_name + 'vi_training.png'))
     plt.close()
 
     # Plot classification error rate
@@ -575,7 +580,7 @@ def train_BLL_VI_classification(net, name, batch_size, nb_epochs, trainset, vals
     plt.grid(True)
     plt.legend(['train error', 'validation error'])
     plt.title('Classification Errors')
-    plt.savefig(results_dir + '/vi_error.png')
+    plt.savefig(os.path.join(results_dir, model_name + 'vi_error.png')) 
     plt.close()
 
     return cost_train[:i+1], cost_dev[:i+1], err_train[:i+1], err_dev[:i+1], kl_train[:i+1]

@@ -13,7 +13,7 @@ class BayesianLastLayerVI(nn.Module):
     """
 
     def __init__(self, backbone, input_dim, output_dim, prior_mu=0.0, prior_sigma=0.1,
-                 kl_weight=0.1, device=None):
+                 kl_weight=1.0, device=None):
         """
         Args:
             backbone: Pretrained nn.Module up to penultimate layer
@@ -21,7 +21,7 @@ class BayesianLastLayerVI(nn.Module):
             output_dim: Number of classes
             prior_mu: Mean of Gaussian prior on weights
             prior_sigma: Standard deviation of Gaussian prior
-            kl_weight: Weight of KL divergence term in loss
+            kl_weight: Weight of KL divergence term in loss (default 1.0 as per torchbnn)
             device: 'cpu', 'cuda', or 'mps' (if available)
         """
         super().__init__()

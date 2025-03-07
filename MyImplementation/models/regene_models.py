@@ -104,6 +104,11 @@ class Classifier(nn.Module):
                 if early_stopping_counter >= patience:
                     print(f"Early stopping triggered after {epoch+1} epochs")
                     break
+    def load(self, model_path):
+        """ Load the classifier model from a file """
+        self.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.to(self.device)
+        print(f"Loaded classifier model from: {model_path}")
     
 class Decoder(nn.Module):
     """
@@ -212,6 +217,11 @@ class Decoder(nn.Module):
                 if early_stopping_counter >= patience:
                     print(f"Early stopping triggered after {epoch+1} epochs")
                     break
+    def load(self, model_path):
+        """ Load the decoder model from a file """
+        self.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.to(self.device)
+        print(f"Loaded decoder model from: {model_path}")
 
 def train_joint(classifier, decoder, train_loader, val_loader=None, num_epochs=5, lr=0.001, lambda_recon=0.5, patience=5, model_saves_dir=None):
     """Train both classifier and decoder jointly with combined loss"""
