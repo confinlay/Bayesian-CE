@@ -201,9 +201,10 @@ class FlexibleAutoencoder(nn.Module):
         return loss.item()
     
     def train_model(self, train_loader, num_epochs=10, lr=1e-3, weight_decay=1e-5, 
-                   val_loader=None, early_stopping_patience=5, verbose=True, save_path=None, model_name=None):
+                   val_loader=None, early_stopping_patience=5, verbose=True, save_path=None, model_name=None,
+                   lr_scheduler='plateau', lr_scheduler_params=None):
         """
-        Train the autoencoder on a dataset
+        Train the autoencoder on a dataset with improved optimization
         
         Args:
             train_loader: DataLoader for training data
@@ -214,13 +215,40 @@ class FlexibleAutoencoder(nn.Module):
             early_stopping_patience: Number of epochs to wait for improvement before stopping
             verbose: Whether to print progress
             save_path: Path to save the best model to (if None, model won't be saved to disk)
-            model_name: Name of the model (if None, model won't be saved to disk)   
+            model_name: Name of the model (if None, model won't be saved to disk)
+            lr_scheduler: Type of learning rate scheduler ('plateau', 'cosine', 'step', or None)
+            lr_scheduler_params: Dictionary of parameters for the scheduler
         Returns:
             train_losses: List of training losses per epoch
             val_losses: List of validation losses per epoch (if val_loader provided)
         """
         self.to(self.device)
         optimizer = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+        
+        # Set up learning rate scheduler
+        scheduler = None
+        if lr_scheduler == 'plateau':
+            scheduler_params = {'factor': 0.5, 'patience': 3, 'min_lr': 1e-6}
+            if lr_scheduler_params:
+                scheduler_params.update(lr_scheduler_params)
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode='min', **scheduler_params
+            )
+        elif lr_scheduler == 'cosine':
+            scheduler_params = {'T_max': num_epochs, 'eta_min': 1e-6}
+            if lr_scheduler_params:
+                scheduler_params.update(lr_scheduler_params)
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, **scheduler_params
+            )
+        elif lr_scheduler == 'step':
+            scheduler_params = {'step_size': 10, 'gamma': 0.5}
+            if lr_scheduler_params:
+                scheduler_params.update(lr_scheduler_params)
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer, **scheduler_params
+            )
+        
         criterion = nn.MSELoss()
         
         train_losses = []
@@ -307,7 +335,7 @@ class FlexibleAutoencoder(nn.Module):
                     if save_path:
                         self.save(save_path + "/" + model_name + "_best_model.pth")
                         if verbose:
-                            print(f"Saved best model to {save_path + "/" + model_name + "_best_model.pth"}")
+                            print(f"Saved best model to {save_path}/{model_name}_best_model.pth")
                 else:
                     patience_counter += 1
                     if patience_counter >= early_stopping_patience:
@@ -327,7 +355,18 @@ class FlexibleAutoencoder(nn.Module):
                 if save_path:
                     self.save(save_path + "/" + model_name + "_latest_model.pth")
                     if verbose:
-                        print(f"Saved model to {save_path + "/" + model_name + "_latest_model.pth"}")
+                        print(f"Saved model to {save_path}/{model_name}_latest_model.pth")
+            
+            # Update learning rate scheduler
+            if scheduler is not None:
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(avg_val_loss if val_loader else avg_train_loss)
+                else:
+                    scheduler.step()
+                
+                if verbose:
+                    current_lr = optimizer.param_groups[0]['lr']
+                    print(f"Current learning rate: {current_lr:.2e}")
         
         # End of training - make sure we have the best model loaded
         if val_loader is not None and not early_stopped:
@@ -338,7 +377,7 @@ class FlexibleAutoencoder(nn.Module):
         if save_path and (val_loader is None or not early_stopped):
             self.save(save_path + "/" + model_name + "_final_model.pth")
             if verbose:
-                print(f"Saved final model to {save_path + "/" + model_name + "_final_model.pth"}")
+                print(f"Saved final model to {save_path}/{model_name}_final_model.pth")
         
         return train_losses, val_losses if val_loader is not None else None
     

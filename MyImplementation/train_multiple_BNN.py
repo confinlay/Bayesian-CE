@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from models.FlexibleAutoencoder import FlexibleAutoencoder
 from models.BNN_VI import BayesianNeuralNetworkVI
 from train import train_BNN_VI_classification, cprint
-from clue import NewCLUE
+from clue.new_CLUE import NewCLUE
 import torch.nn.functional as F
 
 class EncoderBackbone(nn.Module):
@@ -142,10 +142,11 @@ def train_multiple_models(
             val_loader=test_loader,
             num_epochs=ae_epochs,
             lr=1e-3,
-            early_stopping_patience=5,
+            early_stopping_patience=10,
             verbose=True,
             save_path=ae_dir,
-            model_name=model_name
+            model_name=model_name,
+            lr_scheduler='plateau'
         )
         
         # Store trained model
@@ -267,60 +268,36 @@ def train_multiple_models(
     return result
 
 def run_multi_model_clue(
-    models, 
-    model_names,
+    result,  # This expects the dictionary returned by train_multiple_models
     input_data,
-    decoder=None,
     uncertainty_weight=1.0,
     distance_weight=0.005,
     steps=200,
     lr=0.1,
     device=None,
-    is_bayesian=None,
     visualize=True,
     n_cols=5
 ):
     """
-    Run CLUE optimization on the same input data for multiple models.
+    Run CLUE optimization on BNN models trained with different autoencoder backbones.
     
     Args:
-        models: List of models to run CLUE on. Each model should be able to extract features
-                and make predictions.
-        model_names: List of names for each model (for visualization labels)
+        result: Dictionary returned by train_multiple_models containing autoencoders and BNN models
         input_data: Input data tensor of shape [1, channels, height, width]
-        decoder: Optional decoder to visualize reconstructions
         uncertainty_weight: Weight for uncertainty term in CLUE loss
         distance_weight: Weight for distance term in CLUE loss
         steps: Number of steps for CLUE optimization
         lr: Learning rate for CLUE optimization
         device: Device to run optimization on ('cpu', 'cuda', or 'mps')
-        is_bayesian: List of booleans indicating which models are Bayesian
-                    (if None, attempts to detect automatically)
         visualize: Whether to create visualization plots
         n_cols: Number of columns in visualization grid
         
     Returns:
-        dict: Dictionary containing:
-            - 'original_data': The original input data
-            - 'original_latents': List of original latent representations
-            - 'optimized_latents': List of CLUE-optimized latent representations
-            - 'original_entropies': List of original prediction entropies
-            - 'optimized_entropies': List of optimized prediction entropies
-            - 'reconstructions': List of decoded optimized latents (if decoder provided)
-            - 'fig': Matplotlib figure (if visualize=True)
+        dict: Dictionary containing optimization results and visualizations
     """
     # Set device if not provided
     if device is None:
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            device = torch.device('mps')
-        else:
-            device = torch.device('cpu')
-    
-    # Auto-detect Bayesian models if not specified
-    if is_bayesian is None:
-        is_bayesian = [hasattr(model, 'sample_predict') or hasattr(model, 'sample_predict_z') for model in models]
+        device = get_device()
     
     # Ensure input is on the correct device
     input_data = input_data.to(device)
@@ -328,166 +305,165 @@ def run_multi_model_clue(
     # Results dictionary
     results = {
         'original_data': input_data,
-        'original_latents': [],
-        'optimized_latents': [],
-        'original_entropies': [],
-        'optimized_entropies': [],
-        'reconstructions': []
+        'original_latents': {},
+        'optimized_latents': {},
+        'original_entropies': {},
+        'optimized_entropies': {},
+        'original_predictions': {},
+        'optimized_predictions': {},
+        'reconstructions': {},
+        'original_reconstructions': {}
     }
     
-    # Extract latent representations and run CLUE for each model
-    for i, (model, model_name, bayesian) in enumerate(zip(models, model_names, is_bayesian)):
-        model = model.to(device)
-        model.eval()
+    # Process each BNN model with its corresponding autoencoder
+    for hidden_dim, bnn_model in result['bnn_models'].items():
+        # Get the corresponding autoencoder
+        autoencoder = result['autoencoders'][hidden_dim]
         
-        # Extract original latent
+        # Move models to the correct device
+        bnn_model = bnn_model.to(device)
+        autoencoder = autoencoder.to(device)
+        
+        # Set models to evaluation mode
+        bnn_model.eval()
+        autoencoder.eval()
+        
+        # Extract original latent using the corresponding autoencoder
         with torch.no_grad():
-            # Handle different model types and extract features
-            if hasattr(model, 'extract_features'):
-                # Models with explicit feature extraction method
-                z0 = model.extract_features(input_data)
-            elif hasattr(model, 'encode'):
-                # Autoencoder-type models
-                z0 = model.encode(input_data)
-            else:
-                # Models that return (features, output) tuple
-                try:
-                    z0, _ = model(input_data)
-                except:
-                    # Models that just return features
-                    z0 = model(input_data)
+            # Get the latent representation
+            z0 = autoencoder.encode(input_data)
             
-            # Calculate original entropy
-            if bayesian:
-                if hasattr(model, 'sample_predict_z'):
-                    probs = model.sample_predict_z(z0).mean(0)
-                else:
-                    probs = model.sample_predict(input_data).mean(0)
-                entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
-            else:
-                if hasattr(model, 'forward'):
-                    logits = model(z0)
-                else:
-                    # Handle classifier with separate prediction head
-                    try:
-                        logits = model.classifier(z0)
-                    except:
-                        _, logits = model(input_data)
-                        
-                probs = F.softmax(logits, dim=1)
-                entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
+            # Get original prediction and entropy
+            probs = bnn_model.sample_predict_z(z0).mean(0)
+            entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
+            pred = probs.argmax(dim=1)
+            
+            # Get original reconstruction
+            original_reconstruction = autoencoder.decode(z0)
+            results['original_reconstructions'][hidden_dim] = original_reconstruction.detach()
         
-        # Store original latent and entropy
-        results['original_latents'].append(z0.detach())
-        results['original_entropies'].append(entropy.item())
-        
-        # Determine the classifier component for CLUE
-        if hasattr(model, 'classifier'):
-            classifier = model.classifier
-        else:
-            classifier = model
+        # Store original latent, entropy and prediction
+        results['original_latents'][hidden_dim] = z0.detach()
+        results['original_entropies'][hidden_dim] = entropy.item()
+        results['original_predictions'][hidden_dim] = pred.item()
         
         # Run CLUE optimization
         clue_optimizer = NewCLUE(
-            classifier=classifier,
+            classifier=bnn_model,
             z0=z0,
             uncertainty_weight=uncertainty_weight,
             distance_weight=distance_weight,
             lr=lr,
             device=device,
-            bayesian=bayesian,
+            bayesian=True,
             verbose=False
         )
         
         z_optimized = clue_optimizer.optimize(steps=steps)
-        results['optimized_latents'].append(z_optimized)
+        results['optimized_latents'][hidden_dim] = z_optimized
         
-        # Calculate optimized entropy
+        # Calculate optimized entropy and prediction
         with torch.no_grad():
-            if bayesian:
-                if hasattr(model, 'sample_predict_z'):
-                    probs = model.sample_predict_z(z_optimized).mean(0)
-                else:
-                    # Create reconstruction first
-                    recon = decoder(z_optimized)
-                    probs = model.sample_predict(recon).mean(0)
-                entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
-            else:
-                if hasattr(model, 'forward'):
-                    logits = model(z_optimized)
-                else:
-                    logits = model.classifier(z_optimized)
-                probs = F.softmax(logits, dim=1)
-                entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
+            probs = bnn_model.sample_predict_z(z_optimized).mean(0)
+            entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
+            pred = probs.argmax(dim=1)
         
-        results['optimized_entropies'].append(entropy.item())
+        results['optimized_entropies'][hidden_dim] = entropy.item()
+        results['optimized_predictions'][hidden_dim] = pred.item()
         
-        # Generate reconstructions if decoder provided
-        if decoder is not None:
-            decoder = decoder.to(device)
-            with torch.no_grad():
-                reconstruction = decoder(z_optimized)
-                results['reconstructions'].append(reconstruction.detach())
+        # Generate reconstruction
+        with torch.no_grad():
+            reconstruction = autoencoder.decode(z_optimized)
+            results['reconstructions'][hidden_dim] = reconstruction.detach()
+    
+    # Handle raw BNN if it exists
+    if result.get('raw_bnn') is not None:
+        raw_bnn = result['raw_bnn'].to(device)
+        raw_bnn.eval()
+        
+        with torch.no_grad():
+            # For raw BNN, the "latent" is the flattened input
+            flattened_input = input_data.view(input_data.size(0), -1)
+            probs = raw_bnn.sample_predict(input_data).mean(0)
+            entropy = -(probs * torch.log(probs + 1e-10)).sum(1)
+            pred = probs.argmax(dim=1)
+        
+        results['original_latents']['raw'] = flattened_input.detach()
+        results['original_entropies']['raw'] = entropy.item()
+        results['original_predictions']['raw'] = pred.item()
+        
+        # Raw input CLUE is handled differently - we use the GenericCLUE or similar approach
+        # This is typically handled separately since we're optimizing the actual image
+        # not a latent representation
     
     # Visualization
     if visualize:
-        # Calculate rows needed
-        n_models = len(models)
-        n_rows = (n_models * 2 + 1) if decoder is not None else n_models
-        
         # Create figure
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3*n_rows))
+        fig, axes = plt.subplots(len(result['bnn_models']) + 1, n_cols, 
+                                 figsize=(4*n_cols, 3*(len(result['bnn_models'])+1)))
         plt.subplots_adjust(wspace=0.3, hspace=0.5)
         
-        # Add row labels along the left side
-        for i, model_name in enumerate(model_names):
-            row_index = i * 2 + 1 if decoder is not None else i
-            fig.text(0.02, 1 - (row_index + 0.5) / n_rows, 
-                     f"{model_name} CLUE", 
-                     ha='left', va='center', fontsize=12, fontweight='bold')
-            
-            if decoder is not None:
-                fig.text(0.02, 1 - (row_index + 1.5) / n_rows, 
-                         f"{model_name} Diff", 
-                         ha='left', va='center', fontsize=12, fontweight='bold')
+        # Make axes 2D if there's only one row
+        if len(result['bnn_models']) == 1:
+            axes = axes.reshape(2, -1)
         
         # Original image in the first row
-        for col in range(min(n_cols, 1)):  # Just need one column for the original image
-            axes[0, col].imshow(input_data[0, 0].cpu().detach(), cmap='gray')
-            axes[0, col].axis('off')
-            
-            # Create title with all original entropies
-            entropy_str = " | ".join([f"{name}: {ent:.3f}" 
-                                     for name, ent in zip(model_names, results['original_entropies'])])
-            axes[0, col].set_title(f"Original\n{entropy_str}")
-            
-            # Hide unused column cells in the first row
-            for c in range(1, n_cols):
-                axes[0, c].axis('off')
+        axes[0, 0].imshow(input_data[0, 0].cpu().detach(), cmap='gray')
+        axes[0, 0].axis('off')
+        axes[0, 0].set_title("Original")
         
-        # If we have reconstructions, show the optimized images and diffs
-        if decoder is not None:
-            original_recon = None
-            if len(results['reconstructions']) > 0:
-                original_recon = decoder(results['original_latents'][0])
+        # Add entropy values and predictions to the title
+        entropy_str = " | ".join([f"dim={dim}: {ent:.3f} (pred={results['original_predictions'][dim]})" 
+                                 for dim, ent in results['original_entropies'].items()])
+        axes[0, 1].text(0.5, 0.5, f"Original Entropies & Predictions:\n{entropy_str}", 
+                      ha='center', va='center', transform=axes[0, 1].transAxes)
+        axes[0, 1].axis('off')
+        
+        # Hide unused column cells in the first row
+        for c in range(2, n_cols):
+            axes[0, c].axis('off')
+        
+        # Show reconstructions for each hidden dimension
+        for i, (hidden_dim, reconstruction) in enumerate(results['reconstructions'].items()):
+            # Row index (add 1 to skip the original image row)
+            row = i + 1
             
-            for i, (reconstruction, model_name) in enumerate(zip(results['reconstructions'], model_names)):
-                # Reconstructed image
-                axes[i*2+1, 0].imshow(reconstruction[0, 0].cpu().detach(), cmap='gray')
-                axes[i*2+1, 0].axis('off')
-                axes[i*2+1, 0].set_title(f"Optimized\nEntropy: {results['optimized_entropies'][i]:.3f}")
-                
-                # Difference image (if original_recon is available)
-                if original_recon is not None:
-                    diff = reconstruction[0, 0].cpu().detach() - original_recon[0, 0].cpu().detach()
-                    axes[i*2+2, 0].imshow(diff, cmap='RdBu', vmin=-1, vmax=1)
-                    axes[i*2+2, 0].axis('off')
-                    axes[i*2+2, 0].set_title('Difference (Red- Blue+)')
-                
-                # Hide unused column cells in the model rows
-                for c in range(1, n_cols):
-                    axes[i*2+1, c].axis('off')
-                    axes[i*2+2, c].axis('off')
+            # Original reconstruction
+            axes[row, 0].imshow(results['original_reconstructions'][hidden_dim][0, 0].cpu().detach(), cmap='gray')
+            axes[row, 0].axis('off')
+            axes[row, 0].set_title(f"dim={hidden_dim} Original")
+            
+            # Optimized reconstruction
+            axes[row, 1].imshow(reconstruction[0, 0].cpu().detach(), cmap='gray')
+            axes[row, 1].axis('off')
+            axes[row, 1].set_title(f"dim={hidden_dim} Optimized")
+            
+            # Original and optimized entropy values and predictions
+            orig_ent = results['original_entropies'][hidden_dim]
+            opt_ent = results['optimized_entropies'][hidden_dim]
+            orig_pred = results['original_predictions'][hidden_dim]
+            opt_pred = results['optimized_predictions'][hidden_dim]
+            reduction = orig_ent - opt_ent
+            reduction_pct = (reduction / orig_ent) * 100 if orig_ent > 0 else 0
+            
+            entropy_text = (f"Original: {orig_ent:.3f} (pred={orig_pred})\n"
+                          f"Optimized: {opt_ent:.3f} (pred={opt_pred})\n"
+                          f"Reduction: {reduction:.3f} ({reduction_pct:.1f}%)")
+            
+            axes[row, 2].text(0.5, 0.5, entropy_text, ha='center', va='center', 
+                            transform=axes[row, 2].transAxes)
+            axes[row, 2].axis('off')
+            
+            # Difference image 
+            with torch.no_grad():
+                diff = reconstruction[0, 0].cpu().detach() - results['original_reconstructions'][hidden_dim][0, 0].cpu().detach()
+                axes[row, 3].imshow(diff, cmap='RdBu', vmin=-0.5, vmax=0.5)
+                axes[row, 3].axis('off')
+                axes[row, 3].set_title('Difference (Red- Blue+)')
+            
+            # Hide unused column cells
+            for c in range(4, n_cols):
+                axes[row, c].axis('off')
         
         plt.tight_layout()
         results['fig'] = fig
