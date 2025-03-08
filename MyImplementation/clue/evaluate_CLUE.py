@@ -230,7 +230,9 @@ def evaluate_clue_counterfactuals(
                 'realism_score_difference': realism_diff,
                 'recon_counterfactual_realism_difference': recon_realism_diff,  # Added for reconstruction vs counterfactual
                 'original_class_probs': original_mean_probs_latent.cpu().numpy(),
+                'original_recon_class_probs': original_mean_probs_recon.cpu().numpy(),  # Added class probs for original reconstruction
                 'counterfactual_class_probs': explained_mean_probs_latent.cpu().numpy(),
+                'counterfactual_recon_class_probs': explained_mean_probs_recon.cpu().numpy(),  # Added class probs for counterfactual reconstruction
                 'original_class_latent': original_class_latent,  # Added class prediction for original latent
                 'original_class_recon': original_class_recon,  # Added class prediction for original reconstruction
                 'counterfactual_class_latent': explained_class_latent,  # Added class prediction for counterfactual latent
@@ -448,9 +450,9 @@ def visualize_counterfactual_results(results, n=5, figsize=(18, 12)):
             
             # Class probability changes
             ax5 = plt.subplot(num_images_in_fig, 5, i*5 + 5)
-            top_indices = np.argsort(-result['counterfactual_class_probs'][0])[:5]
-            orig_probs = result['original_class_probs'][0][top_indices]
-            new_probs = result['counterfactual_class_probs'][0][top_indices]
+            top_indices = np.argsort(-result['counterfactual_recon_class_probs'][0])[:5]
+            orig_probs = result['original_recon_class_probs'][0][top_indices]
+            new_probs = result['counterfactual_recon_class_probs'][0][top_indices]
             
             x = np.arange(len(top_indices))
             width = 0.35
