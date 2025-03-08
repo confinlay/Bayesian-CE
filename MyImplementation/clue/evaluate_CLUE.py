@@ -1,3 +1,6 @@
+import torch
+import torch.utils.data as data
+
 def evaluate_clue_counterfactuals(
     images, 
     bayesian_model, 
@@ -828,3 +831,92 @@ def save_counterfactual_results_to_csv(results, output_dir="./results", suffix='
     print(f"Aggregate results saved to: {aggregate_csv_path}")
     
     return individual_csv_path, aggregate_csv_path
+
+def save_uncertain_dataset(uncertain_images, uncertain_indices, save_path="uncertain_dataset"):
+    """
+    Save uncertain images and their indices for later use.
+    
+    Args:
+        uncertain_images: Tensor of uncertain images [n, channels, height, width]
+        uncertain_indices: Indices of uncertain images in the original dataset
+        save_path: Directory to save the dataset
+    """
+    import os
+    import torch
+    import json
+    
+    # Create directory if it doesn't exist
+    os.makedirs(save_path, exist_ok=True)
+    
+    # Save the images as a tensor file
+    torch.save(uncertain_images, os.path.join(save_path, "uncertain_images.pt"))
+    
+    # Save the indices as JSON
+    with open(os.path.join(save_path, "uncertain_indices.json"), "w") as f:
+        json.dump(uncertain_indices.tolist(), f)
+    
+    print(f"Dataset saved to {save_path}")
+    print(f"Images shape: {uncertain_images.shape}")
+    print(f"Number of indices: {len(uncertain_indices)}")
+
+
+def load_uncertain_dataset(load_path="uncertain_dataset"):
+    """
+    Load previously saved uncertain images and their indices.
+    
+    Args:
+        load_path: Directory containing the saved dataset
+    
+    Returns:
+        uncertain_images: Tensor of uncertain images
+        uncertain_indices: Indices of uncertain images in the original dataset
+    """
+    import os
+    import torch
+    import json
+    import numpy as np
+    
+    # Load the images tensor
+    images_path = os.path.join(load_path, "uncertain_images.pt")
+    uncertain_images = torch.load(images_path)
+    
+    # Load the indices
+    indices_path = os.path.join(load_path, "uncertain_indices.json")
+    with open(indices_path, "r") as f:
+        uncertain_indices = np.array(json.load(f))
+    
+    print(f"Dataset loaded from {load_path}")
+    print(f"Images shape: {uncertain_images.shape}")
+    print(f"Number of indices: {len(uncertain_indices)}")
+    
+    return uncertain_images, uncertain_indices
+
+
+# Create a PyTorch Dataset for the uncertain images
+class UncertainImagesDataset(torch.utils.data.Dataset):
+    """
+    PyTorch Dataset for uncertain images.
+    Can use original labels from a parent dataset if provided.
+    """
+    def __init__(self, images, indices, parent_dataset=None, transform=None):
+        self.images = images
+        self.indices = indices
+        self.parent_dataset = parent_dataset
+        self.transform = transform
+    
+    def __len__(self):
+        return len(self.images)
+    
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        
+        if self.transform:
+            image = self.transform(image)
+        
+        # If parent dataset provided, get original label
+        if self.parent_dataset is not None:
+            _, label = self.parent_dataset[self.indices[idx]]
+            return image, label
+        
+        # Otherwise just return the image with index as placeholder
+        return image, self.indices[idx]
