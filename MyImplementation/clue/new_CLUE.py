@@ -55,7 +55,7 @@ class NewCLUE:
             A scalar tensor representing the uncertainty.
         """
         # Directly obtain prediction logits from the classifier head.
-        logits = self.classifier(self.z)      
+        logits = self.classifier.classifier(self.z)      
         probs = torch.nn.functional.softmax(logits, dim=1)
         entropy = -(probs * torch.log(probs + 1e-10)).sum(dim=1)
         return entropy

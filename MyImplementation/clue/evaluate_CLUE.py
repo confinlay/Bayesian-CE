@@ -291,15 +291,16 @@ def evaluate_clue_counterfactuals(
     return results
 
 
-def find_uncertain_images(model, dataloader, n=50, device='cuda'):
+def find_uncertain_images(model, dataloader, n=50, device='cuda', bayesian=True):
     """
-    Find the n most uncertain images in a dataset according to a Bayesian model.
+    Find the n most uncertain images in a dataset according to a model.
     
     Args:
-        model: Bayesian model with predict_with_uncertainty method
+        model: Model with predict_with_uncertainty method
         dataloader: DataLoader for the dataset to evaluate
         n: Number of uncertain images to return
         device: Device to run computation on
+        bayesian: If True, use Bayesian uncertainty. If False, use entropy of a single prediction.
         
     Returns:
         uncertain_images: Tensor of uncertain images [n, 1, 28, 28]
@@ -307,6 +308,7 @@ def find_uncertain_images(model, dataloader, n=50, device='cuda'):
     """
     import torch
     import numpy as np
+    import torch.nn.functional as F
     
     # Get uncertainty scores for all data points
     uncertainties = []
@@ -316,11 +318,21 @@ def find_uncertain_images(model, dataloader, n=50, device='cuda'):
     with torch.no_grad():
         for i, (images, _) in enumerate(dataloader):
             images = images.to(device)
-            # Get predictions and uncertainties
-            _, uncertainty_dict = model.predict_with_uncertainty(images)
             
-            # Store total uncertainties and indices
-            uncertainties.extend(uncertainty_dict['total_entropy'].cpu().numpy())
+            if bayesian:
+                # Get predictions and uncertainties using Bayesian approach
+                _, uncertainty_dict = model.predict_with_uncertainty(images)
+                batch_uncertainties = uncertainty_dict['total_entropy'].cpu().numpy()
+            else:
+                # Regular forward pass for non-Bayesian uncertainty
+                z, logits = model(images)
+                probs = F.softmax(logits, dim=1)
+                # Calculate entropy of the prediction
+                entropy = -torch.sum(probs * torch.log(probs + 1e-8), dim=1)
+                batch_uncertainties = entropy.cpu().numpy()
+            
+            # Store uncertainties and indices
+            uncertainties.extend(batch_uncertainties)
             indices.extend(range(i * len(images), i * len(images) + len(images)))
     
     # Convert to numpy arrays
@@ -424,12 +436,12 @@ def visualize_counterfactual_results(results, n=5, figsize=(18, 12)):
             # Counterfactual image
             ax3 = plt.subplot(num_images_in_fig, 5, i*5 + 3)
             ax3.imshow(result['counterfactual_image'][0, 0].numpy(), cmap='gray')
-            ax3.set_title(f"Counterfactual\nClass: {result['counterfactual_class_latent']}\nEntropy: {result['counterfactual_entropy_latent']:.3f}\nLL: {result['counterfactual_log_likelihood']:.1f}")
+            ax3.set_title(f"Counterfactual\nClass: {result['counterfactual_class_latent']}\nLatent entropy: {result['counterfactual_entropy_latent']:.3f}\nReconstruction entropy: {result['counterfactual_entropy_recon']:.3f}\nLL: {result['counterfactual_log_likelihood']:.1f}")
             ax3.set_axis_off()
             
             # Difference map
             ax4 = plt.subplot(num_images_in_fig, 5, i*5 + 4)
-            diff = result['original_image'][0, 0].numpy() - result['counterfactual_image'][0, 0].numpy()
+            diff = result['original_reconstruction'][0, 0].numpy() - result['counterfactual_image'][0, 0].numpy()
             ax4.imshow(diff, cmap='coolwarm', vmin=-1, vmax=1)
             ax4.set_title(f"Difference\nDistance: {result['latent_distance']:.3f}\nLL-diff: {result['log_likelihood_difference']:.1f}")
             ax4.set_axis_off()

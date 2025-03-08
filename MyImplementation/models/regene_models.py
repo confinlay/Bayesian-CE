@@ -43,6 +43,10 @@ class Classifier(nn.Module):
         y = self.classifier(z)
         return z, y  # Return latent representation and class prediction
     
+    def extract_features(self, x):
+        z = self.encoder(x)
+        return z
+    
     def train_classifier(self, train_loader, val_loader=None, num_epochs=5, lr=0.001, patience=5, model_saves_dir=None):
         """ Train the classifier """
         self.to(self.device)
