@@ -17,7 +17,7 @@ class NewCLUE:
         If target_class is None:
             L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
         If target_class is specified:
-            L(z) = uncertainty_weight * (-logit[target_class]) + distance_weight * || z - z0 ||_2
+            L(z) = uncertainty_weight * (-log(p[target_class])) + distance_weight * || z - z0 ||_2
     """
 
     def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', 
@@ -35,7 +35,7 @@ class NewCLUE:
             bayesian: Whether to use Bayesian uncertainty measures.
             verbose: Whether to print progress during optimization.
             target_class: Optional target class index. If provided, optimization will aim to maximize
-                         the logit of this class instead of minimizing entropy.
+                         the probability of this class instead of minimizing entropy.
         """
         self.device = device
         if not torch.is_tensor(z0):
@@ -64,6 +64,17 @@ class NewCLUE:
         """
         logits = self.classifier.classifier(self.z)
         return logits[0, self.target_class]
+
+    def get_class_probability(self):
+        """
+        Computes the post-softmax probability for the target class.
+        
+        Returns:
+            A scalar tensor representing the probability for the target class.
+        """
+        logits = self.classifier.classifier(self.z)
+        probs = torch.nn.functional.softmax(logits, dim=1)
+        return probs[0, self.target_class]
 
     def predict_uncertainty(self):
         """
@@ -110,7 +121,7 @@ class NewCLUE:
             If target_class is None:
                 loss = uncertainty_weight * H(y|z) + distance_weight * ||z - z0||_2
             If target_class is specified:
-                loss = uncertainty_weight * (-logit[target_class]) + distance_weight * ||z - z0||_2
+                loss = uncertainty_weight * (-log(p[target_class])) + distance_weight * ||z - z0||_2
 
         Args:
             steps: Number of gradient steps to perform.
@@ -136,17 +147,14 @@ class NewCLUE:
                     if self.verbose:
                         print(f"Step {step:02d}: Loss: {loss.item():.4f}, Target Class Prob: {target_prob.item():.4f}, Distance: {distance.item():.4f}")
                 else:
-                    # For non-Bayesian case, maximize logit
-                    target_logit = self.get_class_logit()
-                    # Negative logit (to be minimized)
-                    target_term = -target_logit
+                    # For non-Bayesian case, maximize probability
+                    target_prob = self.get_class_probability()
+                    # Negative log probability (to be minimized)
+                    target_term = -torch.log(target_prob + 1e-10)
                     loss = self.uncertainty_weight * target_term + self.distance_weight * distance
                     
                     if self.verbose:
-                        logits = self.classifier.classifier(self.z)
-                        probs = torch.nn.functional.softmax(logits, dim=1)
-                        target_prob = probs[0, self.target_class]
-                        print(f"Step {step:02d}: Loss: {loss.item():.4f}, Target Class Logit: {target_logit.item():.4f}, Target Class Prob: {target_prob.item():.4f}, Distance: {distance.item():.4f}")
+                        print(f"Step {step:02d}: Loss: {loss.item():.4f}, Target Class Prob: {target_prob.item():.4f}, Distance: {distance.item():.4f}")
             else:
                 # Original entropy-based optimization
                 if self.bayesian:

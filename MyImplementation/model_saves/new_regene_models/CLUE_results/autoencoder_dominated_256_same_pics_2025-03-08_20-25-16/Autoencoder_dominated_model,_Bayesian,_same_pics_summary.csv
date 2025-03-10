@@ -1,0 +1,2 @@
+Model,avg_recon_entropy_reduction,Average NLL difference (reconstructions),Original latent entropy,Reconstruction entropy,Counterfactual Entropy,Class Agreement (original vs. Counterfactual),Original log likelihood,Original reconstruction log likelihood,Counterfactual reconstruction log likelihood
+"Autoencoder dominated model, Bayesian, same pics",1.1881860017776489,15.20959014892578,1.59448016166687,1.5829055285453797,0.3947195344418287,0.9,-110.65583908081055,-114.3212629699707,-125.86542922973632

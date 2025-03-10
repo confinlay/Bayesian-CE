@@ -69,8 +69,8 @@ def summarize_model_results(csv_path, model_name):
 if __name__ == '__main__':
     print(os.getcwd())
     os.chdir("/Users/conor/Documents/College terms/College/Thesis/Thesis_Code_Minimised/MyImplementation")
-    model = "DETERMINISTIC_joint_model_256_50_samples_2025-03-08_12-25-16"
+    model = "joint_model_256_same_pics_2025-03-08_19-47-56"
     csv_path = f"model_saves/new_regene_models/CLUE_results/{model}/individual_results.csv"
-    model_name = "Joint model, Deterministic"  # Set the model name as desired
+    model_name = "Joint model, Bayesian, same pics"  # Set the model name as desired
     summary_table = summarize_model_results(csv_path, model_name)
     print(summary_table)

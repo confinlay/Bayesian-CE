@@ -496,7 +496,8 @@ def evaluate_single_clue_counterfactual(
     figsize=(15, 10),
     show_plot=True,
     verbose=False,
-    target_class=None
+    target_class=None,
+    ReconstructionOnly=False
 ):
     """
     Evaluates CLUE counterfactual on a single image, calculates metrics and visualizes the results.
@@ -518,6 +519,7 @@ def evaluate_single_clue_counterfactual(
         show_plot: Whether to display the plot immediately
         verbose: Print detailed progress
         target_class: Optional target class for the counterfactual
+        ReconstructionOnly: If True, only shows reconstructions and not original images
         
     Returns:
         results: Dictionary containing metrics
@@ -670,37 +672,61 @@ def evaluate_single_clue_counterfactual(
     # Create visualization
     fig = plt.figure(figsize=figsize)
     
-    ax1 = plt.subplot(231)
-    ax1.imshow(image[0, 0].cpu(), cmap='gray')
-    ax1.set_title(f'Original Image\nPredicted: {original_pred}' + 
-              (f' (True: {true_label})' if true_label is not None else '') + 
-              f'\nEntropy: {original_entropy_recon[0]:.3f}')
-    ax1.axis('off')
-    
-    ax2 = plt.subplot(232)
-    ax2.imshow(clue_recon[0, 0].cpu().detach(), cmap='gray')
-    ax2.set_title(f'Counterfactual (Target: Class {target_class})\nPredicted: {explained_pred}\nEntropy: {explained_entropy_recon[0]:.3f}')
-    ax2.axis('off')
-    
-    ax3 = plt.subplot(233)
-    diff = clue_recon[0, 0].cpu().detach() - image[0, 0].cpu()
-    ax3.imshow(diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
-    ax3.set_title(f'Counterfactual vs Original\nDifference\n(Red: Removed, Blue: Added)\nClass Change: {original_pred} → {explained_pred}')
-    ax3.axis('off')
-    
-    ax4 = plt.subplot(234)
-    ax4.imshow(original_recon[0, 0].cpu().detach(), cmap='gray')
-    ax4.set_title(f'Original Reconstruction\nPredicted: {original_pred}\nEntropy: {original_entropy_recon[0]:.3f}')
-    ax4.axis('off')
-    
-    ax5 = plt.subplot(235)
-    recon_diff = clue_recon[0, 0].cpu().detach() - original_recon[0, 0].cpu().detach()
-    ax5.imshow(recon_diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
-    ax5.set_title('Counterfactual vs Original\nReconstruction Difference')
-    ax5.axis('off')
-    
-    # Plot top class probabilities
-    ax6 = plt.subplot(236)
+    if ReconstructionOnly:
+        # Only show reconstructions, not original images
+        ax1 = plt.subplot(221)
+        ax1.imshow(original_recon[0, 0].cpu().detach(), cmap='gray')
+        ax1.set_title(f'Original Reconstruction\nPredicted: {original_pred}' + 
+                  (f' (True: {true_label})' if true_label is not None else '') + 
+                  f'\nEntropy: {original_entropy_recon[0]:.3f}')
+        ax1.axis('off')
+        
+        ax2 = plt.subplot(222)
+        ax2.imshow(clue_recon[0, 0].cpu().detach(), cmap='gray')
+        ax2.set_title(f'Counterfactual (Target: Class {target_class})\nPredicted: {explained_pred}\nEntropy: {explained_entropy_recon[0]:.3f}')
+        ax2.axis('off')
+        
+        ax3 = plt.subplot(223)
+        recon_diff = clue_recon[0, 0].cpu().detach() - original_recon[0, 0].cpu().detach()
+        ax3.imshow(recon_diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
+        ax3.set_title('Counterfactual vs Original\nReconstruction Difference')
+        ax3.axis('off')
+        
+        # Plot top class probabilities
+        ax4 = plt.subplot(224)
+    else:
+        ax1 = plt.subplot(231)
+        ax1.imshow(image[0, 0].cpu(), cmap='gray')
+        ax1.set_title(f'Original Image\nPredicted: {original_pred}' + 
+                  (f' (True: {true_label})' if true_label is not None else '') + 
+                  f'\nEntropy: {original_entropy_recon[0]:.3f}')
+        ax1.axis('off')
+        
+        ax2 = plt.subplot(232)
+        ax2.imshow(clue_recon[0, 0].cpu().detach(), cmap='gray')
+        ax2.set_title(f'Counterfactual (Target: Class {target_class})\nPredicted: {explained_pred}\nEntropy: {explained_entropy_recon[0]:.3f}')
+        ax2.axis('off')
+        
+        ax3 = plt.subplot(233)
+        diff = clue_recon[0, 0].cpu().detach() - image[0, 0].cpu()
+        ax3.imshow(diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
+        ax3.set_title(f'Counterfactual vs Original\nDifference\n(Red: Removed, Blue: Added)\nClass Change: {original_pred} → {explained_pred}')
+        ax3.axis('off')
+        
+        ax4 = plt.subplot(234)
+        ax4.imshow(original_recon[0, 0].cpu().detach(), cmap='gray')
+        ax4.set_title(f'Original Reconstruction\nPredicted: {original_pred}\nEntropy: {original_entropy_recon[0]:.3f}')
+        ax4.axis('off')
+        
+        ax5 = plt.subplot(235)
+        recon_diff = clue_recon[0, 0].cpu().detach() - original_recon[0, 0].cpu().detach()
+        ax5.imshow(recon_diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
+        ax5.set_title('Counterfactual vs Original\nReconstruction Difference')
+        ax5.axis('off')
+        
+        # Plot top class probabilities
+        ax6 = plt.subplot(236)
+        ax6 = plt.subplot(236) if not ReconstructionOnly else ax4
     
     # Get indices of max probabilities for original and counterfactual
     orig_max_idx = np.argmax(original_mean_probs_recon.cpu().numpy()[0])
@@ -727,14 +753,17 @@ def evaluate_single_clue_counterfactual(
     orig_probs = original_mean_probs_recon.cpu().numpy()[0][top_indices]
     new_probs = explained_mean_probs_recon.cpu().numpy()[0][top_indices]
     
-    ax6.bar(x - width/2, orig_probs, width, label='Original')
-    ax6.bar(x + width/2, new_probs, width, label='Counterfactual')
-    ax6.set_xticks(x)
-    ax6.set_xticklabels(top_indices)
-    ax6.set_title(f'CF Pred: {explained_pred} (Target: {target_class}, Entropy: {explained_entropy_recon[0]:.4f})')
-    ax6.set_xlabel('Digit Class')
-    ax6.set_ylabel('Probability')
-    ax6.legend()
+    # Use the appropriate axis based on ReconstructionOnly
+    ax_prob = ax4 if ReconstructionOnly else ax6
+    
+    ax_prob.bar(x - width/2, orig_probs, width, label='Original')
+    ax_prob.bar(x + width/2, new_probs, width, label='Counterfactual')
+    ax_prob.set_xticks(x)
+    ax_prob.set_xticklabels(top_indices)
+    ax_prob.set_title(f'CF Pred: {explained_pred} (Target: {target_class}, Entropy: {explained_entropy_recon[0]:.4f})')
+    ax_prob.set_xlabel('Digit Class')
+    ax_prob.set_ylabel('Probability')
+    ax_prob.legend()
     
     plt.tight_layout()
     

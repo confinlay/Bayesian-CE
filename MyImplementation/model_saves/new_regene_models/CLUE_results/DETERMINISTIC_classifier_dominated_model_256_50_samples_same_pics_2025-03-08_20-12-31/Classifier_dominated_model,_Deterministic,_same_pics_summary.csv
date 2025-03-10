@@ -1,0 +1,2 @@
+Model,avg_recon_entropy_reduction,Average NLL difference (reconstructions),Original latent entropy,Reconstruction entropy,Counterfactual Entropy,Class Agreement (original vs. Counterfactual),Original log likelihood,Original reconstruction log likelihood,Counterfactual reconstruction log likelihood
+"Classifier dominated model, Deterministic, same pics",0.039653699266709745,19.13359504699707,0.3066121881711297,0.5850706000217178,0.5454168998888781,0.44,-110.91554153442382,-128.1729712677002,-130.0491365814209
