@@ -1,0 +1,6 @@
+Aggregate Results over 50 images:
+Average target class confidence (reconstruction): 0.0248
+Average target class confidence (latent): 0.5800
+Average latent distance: 29.2114
+Average log likelihood difference: 17.0935
+Average realism score difference: 0.0054
