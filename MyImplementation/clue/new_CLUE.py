@@ -14,10 +14,14 @@ class NewCLUE:
     the uncertainty of the classifier's predictions on the latent code. No need for a decoder.
 
     The loss being minimized is:
-        L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
+        If target_class is None:
+            L(z) = uncertainty_weight * H(y|z) + distance_weight * || z - z0 ||_2
+        If target_class is specified:
+            L(z) = uncertainty_weight * (-logit[target_class]) + distance_weight * || z - z0 ||_2
     """
 
-    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', bayesian=False, verbose=True):
+    def __init__(self, classifier, z0, uncertainty_weight=1.0, distance_weight=1.0, lr=0.1, device='cpu', 
+                 bayesian=False, verbose=True, target_class=None):
         """
         Args:
             classifier: A classification layer which transforms the latent code into a logit.
@@ -28,6 +32,10 @@ class NewCLUE:
                              close to the original latent code.
             lr: Learning rate for the Adam optimizer.
             device: 'cpu' or 'cuda'.
+            bayesian: Whether to use Bayesian uncertainty measures.
+            verbose: Whether to print progress during optimization.
+            target_class: Optional target class index. If provided, optimization will aim to maximize
+                         the logit of this class instead of minimizing entropy.
         """
         self.device = device
         if not torch.is_tensor(z0):
@@ -45,6 +53,17 @@ class NewCLUE:
         self.optimizer = torch.optim.Adam([self.z], lr=lr)
         self.bayesian = bayesian
         self.verbose = verbose
+        self.target_class = target_class
+
+    def get_class_logit(self):
+        """
+        Computes the logit value for the target class.
+        
+        Returns:
+            A scalar tensor representing the logit for the target class.
+        """
+        logits = self.classifier.classifier(self.z)
+        return logits[0, self.target_class]
 
     def predict_uncertainty(self):
         """
@@ -79,11 +98,19 @@ class NewCLUE:
         
         return total_entropy, aleatoric_entropy, epistemic_entropy
 
+    def get_target_class_probability_bayesian(self, num_samples=None):
+        """Get the probability of the target class using Bayesian sampling."""
+        probs = self.classifier.sample_predict_z(self.z, num_samples)  # [num_samples, 1, num_classes]
+        posterior_preds = probs.mean(dim=0, keepdim=False)  # [1, num_classes]
+        return posterior_preds[0, self.target_class]
 
     def optimize(self, steps=25):
         """
         Optimizes the latent code by minimizing the objective:
-            loss = uncertainty_weight * H(y|z) + distance_weight * ||z - z0||_2
+            If target_class is None:
+                loss = uncertainty_weight * H(y|z) + distance_weight * ||z - z0||_2
+            If target_class is specified:
+                loss = uncertainty_weight * (-logit[target_class]) + distance_weight * ||z - z0||_2
 
         Args:
             steps: Number of gradient steps to perform.
@@ -94,18 +121,47 @@ class NewCLUE:
         
         for step in range(steps):
             self.optimizer.zero_grad()
-
-            if self.bayesian:
-                total_entropy, aleatoric_entropy, epistemic_entropy = self.predict_uncertainty_bayesian()
-            else:
-                total_entropy = self.predict_uncertainty()
-                aleatoric_entropy = total_entropy  # For non-Bayesian case, no uncertainty decomposition
-                epistemic_entropy = torch.tensor(0.0).to(self.device)
-                
+            
             distance = torch.norm(self.z - self.z0, p=2)
-            loss = self.uncertainty_weight * total_entropy + self.distance_weight * distance
+            
+            if self.target_class is not None:
+                # Optimize for target class
+                if self.bayesian:
+                    # For Bayesian case, maximize probability of target class
+                    target_prob = self.get_target_class_probability_bayesian()
+                    # Negative log probability (to be minimized)
+                    target_term = -torch.log(target_prob + 1e-10)
+                    loss = self.uncertainty_weight * target_term + self.distance_weight * distance
+                    
+                    if self.verbose:
+                        print(f"Step {step:02d}: Loss: {loss.item():.4f}, Target Class Prob: {target_prob.item():.4f}, Distance: {distance.item():.4f}")
+                else:
+                    # For non-Bayesian case, maximize logit
+                    target_logit = self.get_class_logit()
+                    # Negative logit (to be minimized)
+                    target_term = -target_logit
+                    loss = self.uncertainty_weight * target_term + self.distance_weight * distance
+                    
+                    if self.verbose:
+                        logits = self.classifier.classifier(self.z)
+                        probs = torch.nn.functional.softmax(logits, dim=1)
+                        target_prob = probs[0, self.target_class]
+                        print(f"Step {step:02d}: Loss: {loss.item():.4f}, Target Class Logit: {target_logit.item():.4f}, Target Class Prob: {target_prob.item():.4f}, Distance: {distance.item():.4f}")
+            else:
+                # Original entropy-based optimization
+                if self.bayesian:
+                    total_entropy, aleatoric_entropy, epistemic_entropy = self.predict_uncertainty_bayesian()
+                else:
+                    total_entropy = self.predict_uncertainty()
+                    aleatoric_entropy = total_entropy  # For non-Bayesian case, no uncertainty decomposition
+                    epistemic_entropy = torch.tensor(0.0).to(self.device)
+                    
+                loss = self.uncertainty_weight * total_entropy + self.distance_weight * distance
+                
+                if self.verbose:
+                    print(f"Step {step:02d}: Loss: {loss.item():.4f}, Total Entropy: {total_entropy.item():.4f}, Epistemic Entropy: {epistemic_entropy.item():.4f}, Aleatoric Entropy: {aleatoric_entropy.item():.4f}, Distance: {distance.item():.4f}")
+            
             loss.backward()
             self.optimizer.step()
-            if self.verbose:
-                print(f"Step {step:02d}: Loss: {loss.item():.4f}, Total Entropy: {total_entropy.item():.4f}, Epistemic Entropy: {epistemic_entropy.item():.4f}, Aleatoric Entropy: {aleatoric_entropy.item():.4f}, Distance: {distance.item():.4f}")
+
         return self.z.detach()

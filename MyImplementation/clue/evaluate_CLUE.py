@@ -495,7 +495,8 @@ def evaluate_single_clue_counterfactual(
     k_samples=100,
     figsize=(15, 10),
     show_plot=True,
-    verbose=False
+    verbose=False,
+    target_class=None
 ):
     """
     Evaluates CLUE counterfactual on a single image, calculates metrics and visualizes the results.
@@ -516,6 +517,7 @@ def evaluate_single_clue_counterfactual(
         figsize: Size of the figure
         show_plot: Whether to display the plot immediately
         verbose: Print detailed progress
+        target_class: Optional target class for the counterfactual
         
     Returns:
         results: Dictionary containing metrics
@@ -561,7 +563,8 @@ def evaluate_single_clue_counterfactual(
         lr=lr,
         device=device,
         bayesian=bayesian,
-        verbose=verbose
+        verbose=verbose,
+        target_class=target_class
     )
     
     # Optimize to find explanation
@@ -629,73 +632,109 @@ def evaluate_single_clue_counterfactual(
         likelihood_metrics = {}
         if vae is not None:
             original_ll = vae.log_likelihood(image, k=k_samples).item()
+            reconstruction_ll = vae.log_likelihood(original_recon, k=k_samples).item()
             counterfactual_ll = vae.log_likelihood(clue_recon, k=k_samples).item()
+            
+            # Calculate differences and ratios
             likelihood_diff = original_ll - counterfactual_ll
             likelihood_ratio = np.exp(counterfactual_ll) / np.exp(original_ll)
             
+            # Reconstruction vs counterfactual
+            recon_cf_ll_diff = reconstruction_ll - counterfactual_ll
+            recon_cf_ll_ratio = np.exp(counterfactual_ll) / np.exp(reconstruction_ll)
+            
             # Calculate realism scores
             original_realism = vae.compute_realism_score(image).item()
+            reconstruction_realism = vae.compute_realism_score(original_recon).item()
             counterfactual_realism = vae.compute_realism_score(clue_recon).item()
+            
+            # Calculate differences
             realism_diff = original_realism - counterfactual_realism
+            recon_cf_realism_diff = reconstruction_realism - counterfactual_realism
             
             likelihood_metrics = {
                 'original_log_likelihood': original_ll,
+                'reconstruction_log_likelihood': reconstruction_ll,
                 'counterfactual_log_likelihood': counterfactual_ll,
                 'log_likelihood_difference': likelihood_diff,
+                'recon_counterfactual_log_likelihood_difference': recon_cf_ll_diff,
                 'likelihood_ratio': likelihood_ratio,
+                'recon_counterfactual_likelihood_ratio': recon_cf_ll_ratio,
                 'original_realism_score': original_realism,
+                'reconstruction_realism_score': reconstruction_realism,
                 'counterfactual_realism_score': counterfactual_realism,
-                'realism_score_difference': realism_diff
+                'realism_score_difference': realism_diff,
+                'recon_counterfactual_realism_difference': recon_cf_realism_diff
             }
     
     # Create visualization
     fig = plt.figure(figsize=figsize)
     
-    plt.subplot(231)
-    plt.imshow(image[0, 0].cpu(), cmap='gray')
-    plt.title(f'Original Image\nPredicted: {original_pred}' + 
+    ax1 = plt.subplot(231)
+    ax1.imshow(image[0, 0].cpu(), cmap='gray')
+    ax1.set_title(f'Original Image\nPredicted: {original_pred}' + 
               (f' (True: {true_label})' if true_label is not None else '') + 
               f'\nEntropy: {original_entropy_recon[0]:.3f}')
-    plt.axis('off')
+    ax1.axis('off')
     
-    plt.subplot(232)
-    plt.imshow(clue_recon[0, 0].cpu().detach(), cmap='gray')
-    plt.title(f'Counterfactual\nPredicted: {explained_pred}\nEntropy: {explained_entropy_recon[0]:.3f}')
-    plt.axis('off')
+    ax2 = plt.subplot(232)
+    ax2.imshow(clue_recon[0, 0].cpu().detach(), cmap='gray')
+    ax2.set_title(f'Counterfactual (Target: Class {target_class})\nPredicted: {explained_pred}\nEntropy: {explained_entropy_recon[0]:.3f}')
+    ax2.axis('off')
     
-    plt.subplot(233)
+    ax3 = plt.subplot(233)
     diff = clue_recon[0, 0].cpu().detach() - image[0, 0].cpu()
-    plt.imshow(diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
-    plt.title('Counterfactual vs Original\nDifference\n(Red: Removed, Blue: Added)')
-    plt.axis('off')
+    ax3.imshow(diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
+    ax3.set_title(f'Counterfactual vs Original\nDifference\n(Red: Removed, Blue: Added)\nClass Change: {original_pred} → {explained_pred}')
+    ax3.axis('off')
     
-    plt.subplot(234)
-    plt.imshow(original_recon[0, 0].cpu().detach(), cmap='gray')
-    plt.title('Original Reconstruction')
-    plt.axis('off')
+    ax4 = plt.subplot(234)
+    ax4.imshow(original_recon[0, 0].cpu().detach(), cmap='gray')
+    ax4.set_title(f'Original Reconstruction\nPredicted: {original_pred}\nEntropy: {original_entropy_recon[0]:.3f}')
+    ax4.axis('off')
     
-    plt.subplot(235)
+    ax5 = plt.subplot(235)
     recon_diff = clue_recon[0, 0].cpu().detach() - original_recon[0, 0].cpu().detach()
-    plt.imshow(recon_diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
-    plt.title('Counterfactual vs Original\nReconstruction Difference')
-    plt.axis('off')
+    ax5.imshow(recon_diff, cmap='RdBu', vmin=-1, vmax=1)  # Fixed scale -1 to 1
+    ax5.set_title('Counterfactual vs Original\nReconstruction Difference')
+    ax5.axis('off')
     
     # Plot top class probabilities
-    plt.subplot(236)
-    top_indices = np.argsort(-original_mean_probs_recon.cpu().numpy()[0])[:5]
+    ax6 = plt.subplot(236)
+    
+    # Get indices of max probabilities for original and counterfactual
+    orig_max_idx = np.argmax(original_mean_probs_recon.cpu().numpy()[0])
+    cf_max_idx = np.argmax(explained_mean_probs_recon.cpu().numpy()[0])
+    
+    # Get top indices from original prediction, ensuring max indices are included
+    top_indices = np.argsort(-original_mean_probs_recon.cpu().numpy()[0])[:5].tolist()
+    
+    # Make sure both max indices are included
+    if orig_max_idx not in top_indices:
+        top_indices = top_indices[:-1] + [orig_max_idx]
+    if cf_max_idx not in top_indices and cf_max_idx != orig_max_idx:
+        top_indices = top_indices[:-1] + [cf_max_idx]
+    # Make sure target class is included if it exists
+    if target_class is not None and target_class not in top_indices and target_class != orig_max_idx and target_class != cf_max_idx:
+        top_indices = top_indices[:-1] + [target_class]
+    
+    # Convert to numpy array for indexing
+    top_indices = np.array(top_indices)
+    
     x = np.arange(len(top_indices))
     width = 0.35
     
     orig_probs = original_mean_probs_recon.cpu().numpy()[0][top_indices]
     new_probs = explained_mean_probs_recon.cpu().numpy()[0][top_indices]
     
-    plt.bar(x - width/2, orig_probs, width, label='Original')
-    plt.bar(x + width/2, new_probs, width, label='Counterfactual')
-    plt.xticks(x, [str(i) for i in top_indices])
-    plt.xlabel('Digit Class')
-    plt.ylabel('Probability')
-    plt.title('Top Class Probabilities')
-    plt.legend()
+    ax6.bar(x - width/2, orig_probs, width, label='Original')
+    ax6.bar(x + width/2, new_probs, width, label='Counterfactual')
+    ax6.set_xticks(x)
+    ax6.set_xticklabels(top_indices)
+    ax6.set_title(f'CF Pred: {explained_pred} (Target: {target_class}, Entropy: {explained_entropy_recon[0]:.4f})')
+    ax6.set_xlabel('Digit Class')
+    ax6.set_ylabel('Probability')
+    ax6.legend()
     
     plt.tight_layout()
     
@@ -732,17 +771,25 @@ def evaluate_single_clue_counterfactual(
         print(f"Original (Predicted: {original_pred}" + 
               (f", True: {true_label}" if true_label is not None else "") + 
               f"): {original_mean_probs_recon.cpu().numpy()[0].round(3)}")
-        print(f"Counterfactual (Predicted: {explained_pred}): {explained_mean_probs_recon.cpu().numpy()[0].round(3)}")
+        print(f"Counterfactual (Predicted: {explained_pred}, Target: {target_class}): {explained_mean_probs_recon.cpu().numpy()[0].round(3)}")
         
         if vae is not None:
             print(f"\nLikelihood metrics:")
             print(f"Original log-likelihood: {results['original_log_likelihood']:.2f}")
+            print(f"Reconstruction log-likelihood: {results['reconstruction_log_likelihood']:.2f}")
             print(f"Counterfactual log-likelihood: {results['counterfactual_log_likelihood']:.2f}")
-            print(f"Log-likelihood difference: {results['log_likelihood_difference']:.2f}")
-            print(f"Likelihood ratio: {results['likelihood_ratio']:.2f}x more likely")
+            print(f"Log-likelihood difference (original vs CF): {results['log_likelihood_difference']:.2f}")
+            print(f"Log-likelihood difference (recon vs CF): {results['recon_counterfactual_log_likelihood_difference']:.2f}")
+            print(f"Likelihood ratio (CF/original): {results['likelihood_ratio']:.2f}x")
+            print(f"Likelihood ratio (CF/recon): {results['recon_counterfactual_likelihood_ratio']:.2f}x")
             print(f"Original realism score: {results['original_realism_score']:.3f}")
+            print(f"Reconstruction realism score: {results['reconstruction_realism_score']:.3f}")
             print(f"Counterfactual realism score: {results['counterfactual_realism_score']:.3f}")
-            print(f"Realism score difference: {results['realism_score_difference']:.3f}")
+            print(f"Realism score difference (original vs CF): {results['realism_score_difference']:.3f}")
+            print(f"Realism score difference (recon vs CF): {results['recon_counterfactual_realism_difference']:.3f}")
+    
+    # Add target_class to result_dict
+    results['target_class'] = target_class
     
     return results, fig
 
