@@ -1765,3 +1765,445 @@ def save_class_counterfactual_images(
     
     print(f"Saved {len(saved_paths)} counterfactual visualizations to {output_dir}")
     return saved_paths
+
+def visualize_latent_space_with_pca(
+    dataloader, 
+    model, 
+    original_latent=None,
+    counterfactual_latent=None,
+    reconstruction_latent=None,
+    n_components=2, 
+    random_state=42, 
+    batch_size=None, 
+    device='cuda',
+    figsize=(12, 10),
+    point_size=30,
+    alpha=0.5,
+    highlight_size=150,
+    original_color='blue',
+    counterfactual_color='red',
+    reconstruction_color='green',
+    title="PCA with Original, Counterfactual and Reconstruction",
+    cmap='tab10',
+    show_legend=True,
+    show_plot=True,
+    show_arrow=True,
+    variance_explained=True
+):
+    """
+    Create a PCA visualization of latent space embeddings with highlighted special points.
+    Unlike t-SNE, PCA preserves global distances better.
+    
+    Args:
+        dataloader: DataLoader containing the dataset
+        model: A model from regene_models.py with encoder functionality
+        original_latent: Original point latent representation
+        counterfactual_latent: Counterfactual point latent representation
+        reconstruction_latent: Reconstruction point latent representation
+        n_components: Number of components for PCA (usually 2)
+        random_state: Random seed for reproducibility
+        batch_size: If not None, limit to this many samples for faster computation
+        device: Device to run computations on
+        figsize: Figure size for the plot
+        point_size: Size of regular data points
+        alpha: Alpha transparency for regular points
+        highlight_size: Size of highlighted special points
+        original_color: Color for the original point
+        counterfactual_color: Color for the counterfactual point
+        reconstruction_color: Color for the reconstruction point
+        title: Title for the plot
+        cmap: Colormap for the dataset points
+        show_legend: Whether to show the legend
+        show_plot: Whether to display the plot
+        show_arrow: Whether to show arrow from original to counterfactual
+        variance_explained: Whether to show variance explained in axis labels
+    
+    Returns:
+        - pca: Fitted PCA model
+        - fig: Matplotlib figure (if show_plot=True)
+        - ax: Matplotlib axis (if show_plot=True)
+        - special_points_coords: Dictionary with coordinates of special points in PCA space
+    """
+    import torch
+    import numpy as np
+    from sklearn.decomposition import PCA
+    import matplotlib.pyplot as plt
+    from tqdm import tqdm
+    
+    # Set model to evaluation mode
+    model.eval()
+    
+    # Collect embeddings and labels from dataloader
+    all_embeddings = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for i, (images, labels) in enumerate(tqdm(dataloader, desc="Extracting embeddings")):
+            # Limit batch processing if batch_size is specified
+            if batch_size is not None and i * dataloader.batch_size >= batch_size:
+                break
+                
+            images = images.to(device)
+            
+            # Extract embeddings based on model type
+            if hasattr(model, 'extract_features'):
+                embeddings = model.extract_features(images)
+            elif hasattr(model, 'encoder'):
+                # For models with encoder directly accessible
+                embeddings, _ = model(images)
+            else:
+                raise ValueError("Model must have either extract_features method or encoder attribute")
+            
+            all_embeddings.append(embeddings.cpu().numpy())
+            all_labels.append(labels.numpy())
+    
+    # Concatenate embeddings and labels
+    dataset_embeddings = np.vstack(all_embeddings)
+    dataset_labels = np.concatenate(all_labels)
+    
+    # Prepare special points
+    special_points = []
+    special_point_labels = []
+    
+    # Add original latent if provided
+    if original_latent is not None:
+        if torch.is_tensor(original_latent):
+            original_latent = original_latent.cpu().numpy()
+        if len(original_latent.shape) == 1:
+            original_latent = original_latent.reshape(1, -1)
+        special_points.append(original_latent)
+        special_point_labels.append("Original")
+    
+    # Add counterfactual latent if provided
+    if counterfactual_latent is not None:
+        if torch.is_tensor(counterfactual_latent):
+            counterfactual_latent = counterfactual_latent.cpu().numpy()
+        if len(counterfactual_latent.shape) == 1:
+            counterfactual_latent = counterfactual_latent.reshape(1, -1)
+        special_points.append(counterfactual_latent)
+        special_point_labels.append("Counterfactual")
+    
+    # Add reconstruction latent if provided
+    if reconstruction_latent is not None:
+        if torch.is_tensor(reconstruction_latent):
+            reconstruction_latent = reconstruction_latent.cpu().numpy()
+        if len(reconstruction_latent.shape) == 1:
+            reconstruction_latent = reconstruction_latent.reshape(1, -1)
+        special_points.append(reconstruction_latent)
+        special_point_labels.append("Reconstruction")
+    
+    # Combine all embeddings for PCA
+    if special_points:
+        special_points = np.vstack(special_points)
+        all_points = np.vstack([dataset_embeddings, special_points])
+    else:
+        all_points = dataset_embeddings
+    
+    # Create and fit PCA model
+    pca = PCA(n_components=n_components, random_state=random_state)
+    print(f"Running PCA on {all_points.shape[0]} samples with {all_points.shape[1]} dimensions...")
+    all_points_2d = pca.fit_transform(all_points)
+    
+    # Separate dataset points and special points in PCA space
+    dataset_points_2d = all_points_2d[:len(dataset_embeddings)]
+    special_points_2d = all_points_2d[len(dataset_embeddings):]
+    
+    # Create plot if requested
+    fig = None
+    ax = None
+    special_points_coords = {}
+    
+    if show_plot:
+        fig, ax = plt.subplots(figsize=figsize)
+        
+        # Plot dataset points
+        scatter = ax.scatter(
+            dataset_points_2d[:, 0], dataset_points_2d[:, 1], 
+            c=dataset_labels, cmap=cmap, alpha=alpha, 
+            s=point_size, edgecolors='w', linewidths=0.5
+        )
+        
+        # Plot special points
+        special_markers = ['o', 'D', 's']  # Different markers for each special point
+        special_colors = [original_color, counterfactual_color, reconstruction_color]
+        
+        for i, (label, coords) in enumerate(zip(special_point_labels, special_points_2d)):
+            # Rename "Reconstruction" to "Counterfactual Reconstruction"
+            display_label = "Counterfactual Reconstruction" if label == "Reconstruction" else label
+            
+            ax.scatter(
+                coords[0], coords[1],
+                color=special_colors[i], 
+                s=point_size * 1.5, 
+                marker=special_markers[i],
+                edgecolors='black', 
+                linewidths=1.5,
+                label=display_label,
+                zorder=5  # Make sure special points are on top
+            )
+            special_points_coords[label] = coords
+            
+            # Draw an arrow if both original and counterfactual exist and arrow is requested
+            if show_arrow and label == "Counterfactual" and "Original" in special_points_coords:
+                orig = special_points_coords["Original"]
+                cf = coords
+                
+                # Calculate the Euclidean distance in PCA space
+                pca_distance = np.sqrt(np.sum((orig - cf)**2))
+                
+                # Calculate the Euclidean distance in original latent space
+                latent_distance = np.sqrt(np.sum(
+                    (original_latent - counterfactual_latent)**2
+                ))
+                
+                # Show the arrow with annotation
+                ax.arrow(
+                    orig[0], orig[1], cf[0]-orig[0], cf[1]-orig[1],
+                    color='black', width=0.01, head_width=0.2, head_length=0.2,
+                    length_includes_head=True, alpha=0.7, zorder=4
+                )
+                
+                # Annotate with distances above the original point with a gap
+                ax.annotate(
+                    f"Latent dist: {latent_distance:.2f}\nPCA dist: {pca_distance:.2f}",
+                    xy=orig, xytext=(orig[0], orig[1] + 1.0),  # Position above original point with gap
+                    arrowprops=dict(arrowstyle="->", connectionstyle="arc3", color="gray"),
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.8),
+                    fontsize=9
+                )
+        
+        # Add colorbar
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label('Class')
+        
+        # Add legend for special points
+        if show_legend:
+            ax.legend(loc='upper right')
+        
+        # Add labels with variance explained
+        if variance_explained:
+            explained_var_ratio = pca.explained_variance_ratio_
+            ax.set_xlabel(f'PC1 ({explained_var_ratio[0]:.1%} variance explained)')
+            ax.set_ylabel(f'PC2 ({explained_var_ratio[1]:.1%} variance explained)')
+        else:
+            ax.set_xlabel('PC1')
+            ax.set_ylabel('PC2')
+        
+        ax.set_title(title)
+        ax.grid(linestyle='--', alpha=0.7)
+        
+        plt.tight_layout()
+        plt.show()
+    
+    if show_plot:
+        return pca, fig, ax, special_points_coords
+    else:
+        return pca, special_points_coords
+
+def visualize_latent_space_with_special_points(
+    dataloader, 
+    model, 
+    original_latent=None,
+    counterfactual_latent=None,
+    reconstruction_latent=None,
+    n_components=2, 
+    perplexity=30, 
+    n_iter=1000, 
+    random_state=42, 
+    batch_size=None, 
+    device='cuda',
+    figsize=(12, 10),
+    point_size=30,
+    alpha=0.5,
+    highlight_size=150,
+    original_color='blue',
+    counterfactual_color='red',
+    reconstruction_color='green',
+    title="t-SNE with Original, Counterfactual and Reconstruction",
+    cmap='tab10',
+    show_legend=True,
+    show_plot=True
+):
+    """
+    Create a t-SNE visualization of latent space embeddings with highlighted special points.
+    
+    Args:
+        dataloader: DataLoader containing the dataset
+        model: A model from regene_models.py with encoder functionality
+        original_latent: Original point latent representation
+        counterfactual_latent: Counterfactual point latent representation
+        reconstruction_latent: Reconstruction point latent representation
+        n_components: Number of components for t-SNE (usually 2)
+        perplexity: Perplexity parameter for t-SNE
+        n_iter: Number of iterations for t-SNE
+        random_state: Random seed for reproducibility
+        batch_size: If not None, limit to this many samples for faster computation
+        device: Device to run computations on
+        figsize: Figure size for the plot
+        point_size: Size of regular data points
+        alpha: Alpha transparency for regular points
+        highlight_size: Size of highlighted special points
+        original_color: Color for the original point
+        counterfactual_color: Color for the counterfactual point
+        reconstruction_color: Color for the reconstruction point
+        title: Title for the plot
+        cmap: Colormap for the dataset points
+        show_legend: Whether to show the legend
+        show_plot: Whether to display the plot
+    
+    Returns:
+        - tsne: Fitted t-SNE model
+        - fig: Matplotlib figure (if show_plot=True)
+        - ax: Matplotlib axis (if show_plot=True)
+        - special_points_coords: Dictionary with coordinates of special points in t-SNE space
+    """
+    import torch
+    import numpy as np
+    from sklearn.manifold import TSNE
+    import matplotlib.pyplot as plt
+    from tqdm import tqdm
+    
+    # Set model to evaluation mode
+    model.eval()
+    
+    # Collect embeddings and labels from dataloader
+    all_embeddings = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for i, (images, labels) in enumerate(tqdm(dataloader, desc="Extracting embeddings")):
+            # Limit batch processing if batch_size is specified
+            if batch_size is not None and i * dataloader.batch_size >= batch_size:
+                break
+                
+            images = images.to(device)
+            
+            # Extract embeddings based on model type
+            if hasattr(model, 'extract_features'):
+                embeddings = model.extract_features(images)
+            elif hasattr(model, 'encoder'):
+                # For models with encoder directly accessible
+                embeddings, _ = model(images)
+            else:
+                raise ValueError("Model must have either extract_features method or encoder attribute")
+            
+            all_embeddings.append(embeddings.cpu().numpy())
+            all_labels.append(labels.numpy())
+    
+    # Concatenate embeddings and labels
+    dataset_embeddings = np.vstack(all_embeddings)
+    dataset_labels = np.concatenate(all_labels)
+    
+    # Prepare special points
+    special_points = []
+    special_point_labels = []
+    
+    # Add original latent if provided
+    if original_latent is not None:
+        if torch.is_tensor(original_latent):
+            original_latent = original_latent.cpu().numpy()
+        if len(original_latent.shape) == 1:
+            original_latent = original_latent.reshape(1, -1)
+        special_points.append(original_latent)
+        special_point_labels.append("Original")
+    
+    # Add counterfactual latent if provided
+    if counterfactual_latent is not None:
+        if torch.is_tensor(counterfactual_latent):
+            counterfactual_latent = counterfactual_latent.cpu().numpy()
+        if len(counterfactual_latent.shape) == 1:
+            counterfactual_latent = counterfactual_latent.reshape(1, -1)
+        special_points.append(counterfactual_latent)
+        special_point_labels.append("Counterfactual")
+    
+    # Add reconstruction latent if provided
+    if reconstruction_latent is not None:
+        if torch.is_tensor(reconstruction_latent):
+            reconstruction_latent = reconstruction_latent.cpu().numpy()
+        if len(reconstruction_latent.shape) == 1:
+            reconstruction_latent = reconstruction_latent.reshape(1, -1)
+        special_points.append(reconstruction_latent)
+        special_point_labels.append("Reconstruction")
+    
+    # Combine all embeddings for t-SNE
+    if special_points:
+        special_points = np.vstack(special_points)
+        all_points = np.vstack([dataset_embeddings, special_points])
+    else:
+        all_points = dataset_embeddings
+    
+    # Create and fit t-SNE model
+    tsne = TSNE(n_components=n_components, perplexity=perplexity, n_iter=n_iter, random_state=random_state)
+    print(f"Running t-SNE on {all_points.shape[0]} samples with {all_points.shape[1]} dimensions...")
+    all_points_2d = tsne.fit_transform(all_points)
+    
+    # Separate dataset points and special points in t-SNE space
+    dataset_points_2d = all_points_2d[:len(dataset_embeddings)]
+    special_points_2d = all_points_2d[len(dataset_embeddings):]
+    
+    # Create plot if requested
+    fig = None
+    ax = None
+    special_points_coords = {}
+    
+    if show_plot:
+        fig, ax = plt.subplots(figsize=figsize)
+        
+        # Plot dataset points
+        scatter = ax.scatter(
+            dataset_points_2d[:, 0], dataset_points_2d[:, 1], 
+            c=dataset_labels, cmap=cmap, alpha=alpha, 
+            s=point_size, edgecolors='w', linewidths=0.5
+        )
+        
+        # Plot special points
+        special_markers = ['o', 'D', 's']  # Different markers for each special point
+        special_colors = [original_color, counterfactual_color, reconstruction_color]
+        
+        for i, (label, coords) in enumerate(zip(special_point_labels, special_points_2d)):
+            ax.scatter(
+                coords[0], coords[1],
+                color=special_colors[i], 
+                s=point_size * 0.5,  # Much smaller highlight size, just 1.5x the regular point size
+                marker=special_markers[i],
+                edgecolors='black', 
+                linewidths=1.0,
+                label=label,
+                zorder=5  # Make sure special points are on top
+            )
+            special_points_coords[label] = coords
+            
+            # Draw an arrow if both original and counterfactual exist
+            if label == "Counterfactual" and "Original" in special_points_coords:
+                orig = special_points_coords["Original"]
+                cf = coords
+                ax.arrow(
+                    orig[0], orig[1], cf[0]-orig[0], cf[1]-orig[1],
+                    color='black', width=0.01, head_width=0.1, head_length=0.1,
+                    length_includes_head=True, alpha=0.7, zorder=4
+                )
+        
+        # Add colorbar
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label('Class')
+        
+        # Add legend for special points
+        if show_legend:
+            ax.legend(loc='upper right')
+        
+        # Add labels and title
+        ax.set_title(title)
+        ax.set_xlabel('t-SNE Dimension 1')
+        ax.set_ylabel('t-SNE Dimension 2')
+        ax.grid(linestyle='--', alpha=0.7)
+        
+        plt.tight_layout()
+        plt.show()
+    
+    if show_plot:
+        return tsne, fig, ax, special_points_coords
+    else:
+        return tsne, special_points_coords
+    
+
+    
