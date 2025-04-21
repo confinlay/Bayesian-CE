@@ -1,0 +1,2 @@
+Model,avg_recon_entropy_reduction,Average NLL difference (reconstructions),Original latent entropy,Reconstruction entropy,Counterfactual Entropy,Class Agreement (original vs. Counterfactual),Original log likelihood,Original reconstruction log likelihood,Counterfactual reconstruction log likelihood
+"Joint model, Bayesian, same pics",0.6686807006597519,9.53282730102539,1.3259872531890868,1.3121575725078582,0.6434768709540367,0.92,-110.83806961059571,-118.14154678344727,-120.37089691162109

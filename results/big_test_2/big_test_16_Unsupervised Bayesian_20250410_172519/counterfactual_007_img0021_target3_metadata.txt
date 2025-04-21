@@ -1,0 +1,35 @@
+Image Index: 21
+Target Class: 3
+
+Classification:
+Original Class (reconstruction): 1
+Original Class (latent): 1
+Counterfactual Class (reconstruction): 3
+Counterfactual Class (latent): 3
+
+Confidence:
+Target Class Confidence (reconstruction): 0.999980
+Target Class Confidence (latent): 0.999980
+
+Metrics:
+Latent Distance: 18.597231
+Original Log Likelihood: -44.155514
+Reconstruction Log Likelihood: -45.583107
+Counterfactual Log Likelihood: -124.694344
+Log Likelihood Difference (original vs counterfactual): 80.538830
+Log Likelihood Difference (reconstruction vs counterfactual): 79.111237
+IM1 Score: 0.5969814376670142
+
+Class Probability Distributions:
+Original (reconstruction): N/A
+
+Counterfactual (reconstruction): N/A
+
+Original (latent):
+  Class 1: 0.946255
+  Class 2: 0.015273
+  Class 4: 0.020175
+  Class 6: 0.017662
+
+Counterfactual (latent):
+  Class 3: 0.999980

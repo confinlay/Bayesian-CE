@@ -1,0 +1,2306 @@
+\documentclass[11pt]{article}
+
+    \usepackage[breakable]{tcolorbox}
+    \usepackage{parskip} % Stop auto-indenting (to mimic markdown behaviour)
+    
+
+    % Basic figure setup, for now with no caption control since it's done
+    % automatically by Pandoc (which extracts ![](path) syntax from Markdown).
+    \usepackage{graphicx}
+    % Keep aspect ratio if custom image width or height is specified
+    \setkeys{Gin}{keepaspectratio}
+    % Maintain compatibility with old templates. Remove in nbconvert 6.0
+    \let\Oldincludegraphics\includegraphics
+    % Ensure that by default, figures have no caption (until we provide a
+    % proper Figure object with a Caption API and a way to capture that
+    % in the conversion process - todo).
+    \usepackage{caption}
+    \DeclareCaptionFormat{nocaption}{}
+    \captionsetup{format=nocaption,aboveskip=0pt,belowskip=0pt}
+
+    \usepackage{float}
+    \floatplacement{figure}{H} % forces figures to be placed at the correct location
+    \usepackage{xcolor} % Allow colors to be defined
+    \usepackage{enumerate} % Needed for markdown enumerations to work
+    \usepackage{geometry} % Used to adjust the document margins
+    \usepackage{amsmath} % Equations
+    \usepackage{amssymb} % Equations
+    \usepackage{textcomp} % defines textquotesingle
+    % Hack from http://tex.stackexchange.com/a/47451/13684:
+    \AtBeginDocument{%
+        \def\PYZsq{\textquotesingle}% Upright quotes in Pygmentized code
+    }
+    \usepackage{upquote} % Upright quotes for verbatim code
+    \usepackage{eurosym} % defines \euro
+
+    \usepackage{iftex}
+    \ifPDFTeX
+        \usepackage[T1]{fontenc}
+        \IfFileExists{alphabeta.sty}{
+              \usepackage{alphabeta}
+          }{
+              \usepackage[mathletters]{ucs}
+              \usepackage[utf8x]{inputenc}
+          }
+    \else
+        \usepackage{fontspec}
+        \usepackage{unicode-math}
+    \fi
+
+    \usepackage{fancyvrb} % verbatim replacement that allows latex
+    \usepackage{grffile} % extends the file name processing of package graphics
+                         % to support a larger range
+    \makeatletter % fix for old versions of grffile with XeLaTeX
+    \@ifpackagelater{grffile}{2019/11/01}
+    {
+      % Do nothing on new versions
+    }
+    {
+      \def\Gread@@xetex#1{%
+        \IfFileExists{"\Gin@base".bb}%
+        {\Gread@eps{\Gin@base.bb}}%
+        {\Gread@@xetex@aux#1}%
+      }
+    }
+    \makeatother
+    \usepackage[Export]{adjustbox} % Used to constrain images to a maximum size
+    \adjustboxset{max size={0.9\linewidth}{0.9\paperheight}}
+
+    % The hyperref package gives us a pdf with properly built
+    % internal navigation ('pdf bookmarks' for the table of contents,
+    % internal cross-reference links, web links for URLs, etc.)
+    \usepackage{hyperref}
+    % The default LaTeX title has an obnoxious amount of whitespace. By default,
+    % titling removes some of it. It also provides customization options.
+    \usepackage{titling}
+    \usepackage{longtable} % longtable support required by pandoc >1.10
+    \usepackage{booktabs}  % table support for pandoc > 1.12.2
+    \usepackage{array}     % table support for pandoc >= 2.11.3
+    \usepackage{calc}      % table minipage width calculation for pandoc >= 2.11.1
+    \usepackage[inline]{enumitem} % IRkernel/repr support (it uses the enumerate* environment)
+    \usepackage[normalem]{ulem} % ulem is needed to support strikethroughs (\sout)
+                                % normalem makes italics be italics, not underlines
+    \usepackage{soul}      % strikethrough (\st) support for pandoc >= 3.0.0
+    \usepackage{mathrsfs}
+    
+
+    
+    % Colors for the hyperref package
+    \definecolor{urlcolor}{rgb}{0,.145,.698}
+    \definecolor{linkcolor}{rgb}{.71,0.21,0.01}
+    \definecolor{citecolor}{rgb}{.12,.54,.11}
+
+    % ANSI colors
+    \definecolor{ansi-black}{HTML}{3E424D}
+    \definecolor{ansi-black-intense}{HTML}{282C36}
+    \definecolor{ansi-red}{HTML}{E75C58}
+    \definecolor{ansi-red-intense}{HTML}{B22B31}
+    \definecolor{ansi-green}{HTML}{00A250}
+    \definecolor{ansi-green-intense}{HTML}{007427}
+    \definecolor{ansi-yellow}{HTML}{DDB62B}
+    \definecolor{ansi-yellow-intense}{HTML}{B27D12}
+    \definecolor{ansi-blue}{HTML}{208FFB}
+    \definecolor{ansi-blue-intense}{HTML}{0065CA}
+    \definecolor{ansi-magenta}{HTML}{D160C4}
+    \definecolor{ansi-magenta-intense}{HTML}{A03196}
+    \definecolor{ansi-cyan}{HTML}{60C6C8}
+    \definecolor{ansi-cyan-intense}{HTML}{258F8F}
+    \definecolor{ansi-white}{HTML}{C5C1B4}
+    \definecolor{ansi-white-intense}{HTML}{A1A6B2}
+    \definecolor{ansi-default-inverse-fg}{HTML}{FFFFFF}
+    \definecolor{ansi-default-inverse-bg}{HTML}{000000}
+
+    % common color for the border for error outputs.
+    \definecolor{outerrorbackground}{HTML}{FFDFDF}
+
+    % commands and environments needed by pandoc snippets
+    % extracted from the output of `pandoc -s`
+    \providecommand{\tightlist}{%
+      \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+    % Add ',fontsize=\small' for more characters per line
+    \newenvironment{Shaded}{}{}
+    \newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{{#1}}}}
+    \newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{{#1}}}
+    \newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+    \newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+    \newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+    \newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+    \newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+    \newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{{#1}}}}
+    \newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{{#1}}}
+    \newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{{#1}}}}
+    \newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{{#1}}}
+    \newcommand{\RegionMarkerTok}[1]{{#1}}
+    \newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{{#1}}}}
+    \newcommand{\NormalTok}[1]{{#1}}
+
+    % Additional commands for more recent versions of Pandoc
+    \newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{{#1}}}
+    \newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+    \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+    \newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{{#1}}}
+    \newcommand{\ImportTok}[1]{{#1}}
+    \newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{{#1}}}}
+    \newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{{#1}}}}}
+    \newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{{#1}}}}}
+    \newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{{#1}}}
+    \newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{{#1}}}}
+    \newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{{#1}}}
+    \newcommand{\BuiltInTok}[1]{{#1}}
+    \newcommand{\ExtensionTok}[1]{{#1}}
+    \newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{{#1}}}
+    \newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{{#1}}}
+    \newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{{#1}}}}}
+    \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{{#1}}}}}
+    \makeatletter
+    \newsavebox\pandoc@box
+    \newcommand*\pandocbounded[1]{%
+      \sbox\pandoc@box{#1}%
+      % scaling factors for width and height
+      \Gscale@div\@tempa\textheight{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+      \Gscale@div\@tempb\linewidth{\wd\pandoc@box}%
+      % select the smaller of both
+      \ifdim\@tempb\p@<\@tempa\p@
+        \let\@tempa\@tempb
+      \fi
+      % scaling accordingly (\@tempa < 1)
+      \ifdim\@tempa\p@<\p@
+        \scalebox{\@tempa}{\usebox\pandoc@box}%
+      % scaling not needed, use as it is
+      \else
+        \usebox{\pandoc@box}%
+      \fi
+    }
+    \makeatother
+
+    % Define a nice break command that doesn't care if a line doesn't already
+    % exist.
+    \def\br{\hspace*{\fill} \\* }
+    % Math Jax compatibility definitions
+    \def\gt{>}
+    \def\lt{<}
+    \let\Oldtex\TeX
+    \let\Oldlatex\LaTeX
+    \renewcommand{\TeX}{\textrm{\Oldtex}}
+    \renewcommand{\LaTeX}{\textrm{\Oldlatex}}
+    % Document parameters
+    % Document title
+    \title{test-new-clue}
+    
+    
+    
+    
+    
+    
+    
+% Pygments definitions
+\makeatletter
+\def\PY@reset{\let\PY@it=\relax \let\PY@bf=\relax%
+    \let\PY@ul=\relax \let\PY@tc=\relax%
+    \let\PY@bc=\relax \let\PY@ff=\relax}
+\def\PY@tok#1{\csname PY@tok@#1\endcsname}
+\def\PY@toks#1+{\ifx\relax#1\empty\else%
+    \PY@tok{#1}\expandafter\PY@toks\fi}
+\def\PY@do#1{\PY@bc{\PY@tc{\PY@ul{%
+    \PY@it{\PY@bf{\PY@ff{#1}}}}}}}
+\def\PY#1#2{\PY@reset\PY@toks#1+\relax+\PY@do{#2}}
+
+\@namedef{PY@tok@w}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.73,0.73}{##1}}}
+\@namedef{PY@tok@c}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cp}{\def\PY@tc##1{\textcolor[rgb]{0.61,0.40,0.00}{##1}}}
+\@namedef{PY@tok@k}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kp}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kt}{\def\PY@tc##1{\textcolor[rgb]{0.69,0.00,0.25}{##1}}}
+\@namedef{PY@tok@o}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@ow}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.67,0.13,1.00}{##1}}}
+\@namedef{PY@tok@nb}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@nf}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@nc}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@nn}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@ne}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.80,0.25,0.22}{##1}}}
+\@namedef{PY@tok@nv}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@no}{\def\PY@tc##1{\textcolor[rgb]{0.53,0.00,0.00}{##1}}}
+\@namedef{PY@tok@nl}{\def\PY@tc##1{\textcolor[rgb]{0.46,0.46,0.00}{##1}}}
+\@namedef{PY@tok@ni}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.44,0.44,0.44}{##1}}}
+\@namedef{PY@tok@na}{\def\PY@tc##1{\textcolor[rgb]{0.41,0.47,0.13}{##1}}}
+\@namedef{PY@tok@nt}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@nd}{\def\PY@tc##1{\textcolor[rgb]{0.67,0.13,1.00}{##1}}}
+\@namedef{PY@tok@s}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sd}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@si}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.64,0.35,0.47}{##1}}}
+\@namedef{PY@tok@se}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.67,0.36,0.12}{##1}}}
+\@namedef{PY@tok@sr}{\def\PY@tc##1{\textcolor[rgb]{0.64,0.35,0.47}{##1}}}
+\@namedef{PY@tok@ss}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@sx}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@m}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@gh}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,0.50}{##1}}}
+\@namedef{PY@tok@gu}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.50,0.00,0.50}{##1}}}
+\@namedef{PY@tok@gd}{\def\PY@tc##1{\textcolor[rgb]{0.63,0.00,0.00}{##1}}}
+\@namedef{PY@tok@gi}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.52,0.00}{##1}}}
+\@namedef{PY@tok@gr}{\def\PY@tc##1{\textcolor[rgb]{0.89,0.00,0.00}{##1}}}
+\@namedef{PY@tok@ge}{\let\PY@it=\textit}
+\@namedef{PY@tok@gs}{\let\PY@bf=\textbf}
+\@namedef{PY@tok@ges}{\let\PY@bf=\textbf\let\PY@it=\textit}
+\@namedef{PY@tok@gp}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,0.50}{##1}}}
+\@namedef{PY@tok@go}{\def\PY@tc##1{\textcolor[rgb]{0.44,0.44,0.44}{##1}}}
+\@namedef{PY@tok@gt}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.27,0.87}{##1}}}
+\@namedef{PY@tok@err}{\def\PY@bc##1{{\setlength{\fboxsep}{\string -\fboxrule}\fcolorbox[rgb]{1.00,0.00,0.00}{1,1,1}{\strut ##1}}}}
+\@namedef{PY@tok@kc}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kd}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kn}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kr}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@bp}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@fm}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@vc}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vg}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vi}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vm}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@sa}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sb}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sc}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@dl}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@s2}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sh}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@s1}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@mb}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mf}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mh}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mi}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@il}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mo}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@ch}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cm}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cpf}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@c1}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cs}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+
+\def\PYZbs{\char`\\}
+\def\PYZus{\char`\_}
+\def\PYZob{\char`\{}
+\def\PYZcb{\char`\}}
+\def\PYZca{\char`\^}
+\def\PYZam{\char`\&}
+\def\PYZlt{\char`\<}
+\def\PYZgt{\char`\>}
+\def\PYZsh{\char`\#}
+\def\PYZpc{\char`\%}
+\def\PYZdl{\char`\$}
+\def\PYZhy{\char`\-}
+\def\PYZsq{\char`\'}
+\def\PYZdq{\char`\"}
+\def\PYZti{\char`\~}
+% for compatibility with earlier versions
+\def\PYZat{@}
+\def\PYZlb{[}
+\def\PYZrb{]}
+\makeatother
+
+
+    % For linebreaks inside Verbatim environment from package fancyvrb.
+    \makeatletter
+        \newbox\Wrappedcontinuationbox
+        \newbox\Wrappedvisiblespacebox
+        \newcommand*\Wrappedvisiblespace {\textcolor{red}{\textvisiblespace}}
+        \newcommand*\Wrappedcontinuationsymbol {\textcolor{red}{\llap{\tiny$\m@th\hookrightarrow$}}}
+        \newcommand*\Wrappedcontinuationindent {3ex }
+        \newcommand*\Wrappedafterbreak {\kern\Wrappedcontinuationindent\copy\Wrappedcontinuationbox}
+        % Take advantage of the already applied Pygments mark-up to insert
+        % potential linebreaks for TeX processing.
+        %        {, <, #, %, $, ' and ": go to next line.
+        %        _, }, ^, &, >, - and ~: stay at end of broken line.
+        % Use of \textquotesingle for straight quote.
+        \newcommand*\Wrappedbreaksatspecials {%
+            \def\PYGZus{\discretionary{\char`\_}{\Wrappedafterbreak}{\char`\_}}%
+            \def\PYGZob{\discretionary{}{\Wrappedafterbreak\char`\{}{\char`\{}}%
+            \def\PYGZcb{\discretionary{\char`\}}{\Wrappedafterbreak}{\char`\}}}%
+            \def\PYGZca{\discretionary{\char`\^}{\Wrappedafterbreak}{\char`\^}}%
+            \def\PYGZam{\discretionary{\char`\&}{\Wrappedafterbreak}{\char`\&}}%
+            \def\PYGZlt{\discretionary{}{\Wrappedafterbreak\char`\<}{\char`\<}}%
+            \def\PYGZgt{\discretionary{\char`\>}{\Wrappedafterbreak}{\char`\>}}%
+            \def\PYGZsh{\discretionary{}{\Wrappedafterbreak\char`\#}{\char`\#}}%
+            \def\PYGZpc{\discretionary{}{\Wrappedafterbreak\char`\%}{\char`\%}}%
+            \def\PYGZdl{\discretionary{}{\Wrappedafterbreak\char`\$}{\char`\$}}%
+            \def\PYGZhy{\discretionary{\char`\-}{\Wrappedafterbreak}{\char`\-}}%
+            \def\PYGZsq{\discretionary{}{\Wrappedafterbreak\textquotesingle}{\textquotesingle}}%
+            \def\PYGZdq{\discretionary{}{\Wrappedafterbreak\char`\"}{\char`\"}}%
+            \def\PYGZti{\discretionary{\char`\~}{\Wrappedafterbreak}{\char`\~}}%
+        }
+        % Some characters . , ; ? ! / are not pygmentized.
+        % This macro makes them "active" and they will insert potential linebreaks
+        \newcommand*\Wrappedbreaksatpunct {%
+            \lccode`\~`\.\lowercase{\def~}{\discretionary{\hbox{\char`\.}}{\Wrappedafterbreak}{\hbox{\char`\.}}}%
+            \lccode`\~`\,\lowercase{\def~}{\discretionary{\hbox{\char`\,}}{\Wrappedafterbreak}{\hbox{\char`\,}}}%
+            \lccode`\~`\;\lowercase{\def~}{\discretionary{\hbox{\char`\;}}{\Wrappedafterbreak}{\hbox{\char`\;}}}%
+            \lccode`\~`\:\lowercase{\def~}{\discretionary{\hbox{\char`\:}}{\Wrappedafterbreak}{\hbox{\char`\:}}}%
+            \lccode`\~`\?\lowercase{\def~}{\discretionary{\hbox{\char`\?}}{\Wrappedafterbreak}{\hbox{\char`\?}}}%
+            \lccode`\~`\!\lowercase{\def~}{\discretionary{\hbox{\char`\!}}{\Wrappedafterbreak}{\hbox{\char`\!}}}%
+            \lccode`\~`\/\lowercase{\def~}{\discretionary{\hbox{\char`\/}}{\Wrappedafterbreak}{\hbox{\char`\/}}}%
+            \catcode`\.\active
+            \catcode`\,\active
+            \catcode`\;\active
+            \catcode`\:\active
+            \catcode`\?\active
+            \catcode`\!\active
+            \catcode`\/\active
+            \lccode`\~`\~
+        }
+    \makeatother
+
+    \let\OriginalVerbatim=\Verbatim
+    \makeatletter
+    \renewcommand{\Verbatim}[1][1]{%
+        %\parskip\z@skip
+        \sbox\Wrappedcontinuationbox {\Wrappedcontinuationsymbol}%
+        \sbox\Wrappedvisiblespacebox {\FV@SetupFont\Wrappedvisiblespace}%
+        \def\FancyVerbFormatLine ##1{\hsize\linewidth
+            \vtop{\raggedright\hyphenpenalty\z@\exhyphenpenalty\z@
+                \doublehyphendemerits\z@\finalhyphendemerits\z@
+                \strut ##1\strut}%
+        }%
+        % If the linebreak is at a space, the latter will be displayed as visible
+        % space at end of first line, and a continuation symbol starts next line.
+        % Stretch/shrink are however usually zero for typewriter font.
+        \def\FV@Space {%
+            \nobreak\hskip\z@ plus\fontdimen3\font minus\fontdimen4\font
+            \discretionary{\copy\Wrappedvisiblespacebox}{\Wrappedafterbreak}
+            {\kern\fontdimen2\font}%
+        }%
+
+        % Allow breaks at special characters using \PYG... macros.
+        \Wrappedbreaksatspecials
+        % Breaks at punctuation characters . , ; ? ! and / need catcode=\active
+        \OriginalVerbatim[#1,codes*=\Wrappedbreaksatpunct]%
+    }
+    \makeatother
+
+    % Exact colors from NB
+    \definecolor{incolor}{HTML}{303F9F}
+    \definecolor{outcolor}{HTML}{D84315}
+    \definecolor{cellborder}{HTML}{CFCFCF}
+    \definecolor{cellbackground}{HTML}{F7F7F7}
+
+    % prompt
+    \makeatletter
+    \newcommand{\boxspacing}{\kern\kvtcb@left@rule\kern\kvtcb@boxsep}
+    \makeatother
+    \newcommand{\prompt}[4]{
+        {\ttfamily\llap{{\color{#2}[#3]:\hspace{3pt}#4}}\vspace{-\baselineskip}}
+    }
+    
+
+    
+    % Prevent overflowing lines due to hard-to-break entities
+    \sloppy
+    % Setup hyperref package
+    \hypersetup{
+      breaklinks=true,  % so long urls are correctly broken across lines
+      colorlinks=true,
+      urlcolor=urlcolor,
+      linkcolor=linkcolor,
+      citecolor=citecolor,
+      }
+    % Slightly bigger margins than the latex defaults
+    
+    \geometry{verbose,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in}
+    
+    
+
+\begin{document}
+    
+    \maketitle
+    
+    
+
+    
+    \section{New Clue}\label{new-clue}
+
+In this notebook, we'll test the new, simplified CLUE implementation.
+We're not using Bayesian Neural Networks here, so the uncertainty is
+just the entropy of the classifier.
+
+    \subsection{Setup}\label{setup}
+
+    Import libraries
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{16}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{importlib}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{models}\PY{n+nn}{.}\PY{n+nn}{regene\PYZus{}models}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{regene\PYZus{}models}
+\PY{n}{importlib}\PY{o}{.}\PY{n}{reload}\PY{p}{(}\PY{n}{regene\PYZus{}models}\PY{p}{)}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torch}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torch}\PY{n+nn}{.}\PY{n+nn}{nn}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{nn}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torch}\PY{n+nn}{.}\PY{n+nn}{optim}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{optim}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torchvision}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torchvision}\PY{n+nn}{.}\PY{n+nn}{transforms}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{transforms}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{matplotlib}\PY{n+nn}{.}\PY{n+nn}{pyplot}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{plt}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{numpy}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{np}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{os}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{clue}\PY{n+nn}{.}\PY{n+nn}{new\PYZus{}CLUE}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{new\PYZus{}CLUE}
+\PY{n}{importlib}\PY{o}{.}\PY{n}{reload}\PY{p}{(}\PY{n}{new\PYZus{}CLUE}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+            \begin{tcolorbox}[breakable, size=fbox, boxrule=.5pt, pad at break*=1mm, opacityfill=0]
+\prompt{Out}{outcolor}{16}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+<module 'clue.new\_CLUE' from '/Users/conor/Documents/College
+terms/College/Thesis/Thesis\_Code\_Minimised/MyImplementation/clue/new\_CLUE.py'>
+\end{Verbatim}
+\end{tcolorbox}
+        
+    Set the device
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{3}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{k}{if} \PY{n}{torch}\PY{o}{.}\PY{n}{cuda}\PY{o}{.}\PY{n}{is\PYZus{}available}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{n}{device} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{device}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{cuda}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\PY{k}{elif} \PY{n}{torch}\PY{o}{.}\PY{n}{backends}\PY{o}{.}\PY{n}{mps}\PY{o}{.}\PY{n}{is\PYZus{}available}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{n}{device} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{device}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{mps}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\PY{k}{else}\PY{p}{:}
+    \PY{n}{device} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{device}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{cpu}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Using device: }\PY{l+s+si}{\PYZob{}}\PY{n}{device}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+Using device: mps
+    \end{Verbatim}
+
+    Load the Datasets
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{4}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Load the MNIST dataset}
+\PY{n}{transform} \PY{o}{=} \PY{n}{transforms}\PY{o}{.}\PY{n}{Compose}\PY{p}{(}\PY{p}{[}\PY{n}{transforms}\PY{o}{.}\PY{n}{ToTensor}\PY{p}{(}\PY{p}{)}\PY{p}{]}\PY{p}{)}
+\PY{n}{trainset} \PY{o}{=} \PY{n}{torchvision}\PY{o}{.}\PY{n}{datasets}\PY{o}{.}\PY{n}{MNIST}\PY{p}{(}\PY{n}{root}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{../data}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{train}\PY{o}{=}\PY{k+kc}{True}\PY{p}{,} \PY{n}{download}\PY{o}{=}\PY{k+kc}{True}\PY{p}{,} \PY{n}{transform}\PY{o}{=}\PY{n}{transform}\PY{p}{)}
+\PY{n}{testset} \PY{o}{=} \PY{n}{torchvision}\PY{o}{.}\PY{n}{datasets}\PY{o}{.}\PY{n}{MNIST}\PY{p}{(}\PY{n}{root}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{../data}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{train}\PY{o}{=}\PY{k+kc}{False}\PY{p}{,} \PY{n}{download}\PY{o}{=}\PY{k+kc}{True}\PY{p}{,} \PY{n}{transform}\PY{o}{=}\PY{n}{transform}\PY{p}{)}
+
+\PY{n}{trainloader} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{utils}\PY{o}{.}\PY{n}{data}\PY{o}{.}\PY{n}{DataLoader}\PY{p}{(}\PY{n}{trainset}\PY{p}{,} \PY{n}{batch\PYZus{}size}\PY{o}{=}\PY{l+m+mi}{64}\PY{p}{,} \PY{n}{shuffle}\PY{o}{=}\PY{k+kc}{True}\PY{p}{,} \PY{n}{num\PYZus{}workers}\PY{o}{=}\PY{l+m+mi}{2}\PY{p}{)}
+\PY{n}{testloader} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{utils}\PY{o}{.}\PY{n}{data}\PY{o}{.}\PY{n}{DataLoader}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{batch\PYZus{}size}\PY{o}{=}\PY{l+m+mi}{64}\PY{p}{,} \PY{n}{shuffle}\PY{o}{=}\PY{k+kc}{False}\PY{p}{,} \PY{n}{num\PYZus{}workers}\PY{o}{=}\PY{l+m+mi}{2}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    Set the latent dimension
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{5}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{n}{latent\PYZus{}dim} \PY{o}{=} \PY{l+m+mi}{256}
+\end{Verbatim}
+\end{tcolorbox}
+
+    Create a models directory if it doesn't exist
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{8}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Create models directory if it doesn\PYZsq{}t exist}
+\PY{n}{os}\PY{o}{.}\PY{n}{makedirs}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{../model\PYZus{}saves}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{exist\PYZus{}ok}\PY{o}{=}\PY{k+kc}{True}\PY{p}{)}
+\PY{n}{model\PYZus{}saves\PYZus{}dir} \PY{o}{=} \PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{../model\PYZus{}saves}\PY{l+s+s1}{\PYZsq{}}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \subsection{Testing CLUE on joint-training
+autoencoder}\label{testing-clue-on-joint-training-autoencoder}
+
+We'll first test the CLUE implementation on the joint-training
+autoencoder. That is, the classifier and decoder are trained jointly,
+with a loss function that combines the reconstruction loss and the
+classification loss. No generative regularisation is used here, unlike
+the SVAE.
+
+    \subsubsection{Load the joint-training
+autoencoder}\label{load-the-joint-training-autoencoder}
+
+    We load the model trained with a joint training objective.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{9}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{n}{classifier} \PY{o}{=} \PY{n}{regene\PYZus{}models}\PY{o}{.}\PY{n}{Classifier}\PY{p}{(}\PY{n}{latent\PYZus{}dim}\PY{o}{=}\PY{n}{latent\PYZus{}dim}\PY{p}{,} \PY{n}{num\PYZus{}classes}\PY{o}{=}\PY{l+m+mi}{10}\PY{p}{,} \PY{n}{device}\PY{o}{=}\PY{n}{device}\PY{p}{)}
+\PY{n}{decoder} \PY{o}{=} \PY{n}{regene\PYZus{}models}\PY{o}{.}\PY{n}{Decoder}\PY{p}{(}\PY{n}{latent\PYZus{}dim}\PY{o}{=}\PY{n}{latent\PYZus{}dim}\PY{p}{,} \PY{n}{device}\PY{o}{=}\PY{n}{device}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Load the trained models}
+\PY{n}{classifier}\PY{o}{.}\PY{n}{load\PYZus{}state\PYZus{}dict}\PY{p}{(}\PY{n}{torch}\PY{o}{.}\PY{n}{load}\PY{p}{(}\PY{n}{os}\PY{o}{.}\PY{n}{path}\PY{o}{.}\PY{n}{join}\PY{p}{(}\PY{n}{model\PYZus{}saves\PYZus{}dir}\PY{p}{,} \PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{joint\PYZus{}classifier.pth}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}\PY{p}{,} \PY{n}{map\PYZus{}location}\PY{o}{=}\PY{n}{device}\PY{p}{)}\PY{p}{)}
+\PY{n}{decoder}\PY{o}{.}\PY{n}{load\PYZus{}state\PYZus{}dict}\PY{p}{(}\PY{n}{torch}\PY{o}{.}\PY{n}{load}\PY{p}{(}\PY{n}{os}\PY{o}{.}\PY{n}{path}\PY{o}{.}\PY{n}{join}\PY{p}{(}\PY{n}{model\PYZus{}saves\PYZus{}dir}\PY{p}{,} \PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{joint\PYZus{}decoder.pth}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}\PY{p}{,} \PY{n}{map\PYZus{}location}\PY{o}{=}\PY{n}{device}\PY{p}{)}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+/var/folders/tb/ccwl9r592hn9v\_xpq9s1bzlr0000gn/T/ipykernel\_13985/1277527420.py:5
+: FutureWarning: You are using `torch.load` with `weights\_only=False` (the
+current default value), which uses the default pickle module implicitly. It is
+possible to construct malicious pickle data which will execute arbitrary code
+during unpickling (See
+https://github.com/pytorch/pytorch/blob/main/SECURITY.md\#untrusted-models for
+more details). In a future release, the default value for `weights\_only` will be
+flipped to `True`. This limits the functions that could be executed during
+unpickling. Arbitrary objects will no longer be allowed to be loaded via this
+mode unless they are explicitly allowlisted by the user via
+`torch.serialization.add\_safe\_globals`. We recommend you start setting
+`weights\_only=True` for any use case where you don't have full control of the
+loaded file. Please open an issue on GitHub for any issues related to this
+experimental feature.
+  classifier.load\_state\_dict(torch.load(os.path.join(model\_saves\_dir,
+'joint\_classifier.pth'), map\_location=device))
+/var/folders/tb/ccwl9r592hn9v\_xpq9s1bzlr0000gn/T/ipykernel\_13985/1277527420.py:6
+: FutureWarning: You are using `torch.load` with `weights\_only=False` (the
+current default value), which uses the default pickle module implicitly. It is
+possible to construct malicious pickle data which will execute arbitrary code
+during unpickling (See
+https://github.com/pytorch/pytorch/blob/main/SECURITY.md\#untrusted-models for
+more details). In a future release, the default value for `weights\_only` will be
+flipped to `True`. This limits the functions that could be executed during
+unpickling. Arbitrary objects will no longer be allowed to be loaded via this
+mode unless they are explicitly allowlisted by the user via
+`torch.serialization.add\_safe\_globals`. We recommend you start setting
+`weights\_only=True` for any use case where you don't have full control of the
+loaded file. Please open an issue on GitHub for any issues related to this
+experimental feature.
+  decoder.load\_state\_dict(torch.load(os.path.join(model\_saves\_dir,
+'joint\_decoder.pth'), map\_location=device))
+    \end{Verbatim}
+
+            \begin{tcolorbox}[breakable, size=fbox, boxrule=.5pt, pad at break*=1mm, opacityfill=0]
+\prompt{Out}{outcolor}{9}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+<All keys matched successfully>
+\end{Verbatim}
+\end{tcolorbox}
+        
+    Get the most uncertain images, we need a non-shuffled loader for this.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{23}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Create a non\PYZhy{}shuffled loader for uncertainty calculation}
+\PY{n}{eval\PYZus{}loader} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{utils}\PY{o}{.}\PY{n}{data}\PY{o}{.}\PY{n}{DataLoader}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{batch\PYZus{}size}\PY{o}{=}\PY{l+m+mi}{64}\PY{p}{,} \PY{n}{shuffle}\PY{o}{=}\PY{k+kc}{False}\PY{p}{,} \PY{n}{num\PYZus{}workers}\PY{o}{=}\PY{l+m+mi}{2}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Get uncertainty scores for all test set data points}
+\PY{n}{uncertainties} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+\PY{n}{indices} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+
+\PY{n}{classifier}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{k}{for} \PY{n}{i}\PY{p}{,} \PY{p}{(}\PY{n}{images}\PY{p}{,} \PY{n}{\PYZus{}}\PY{p}{)} \PY{o+ow}{in} \PY{n+nb}{enumerate}\PY{p}{(}\PY{n}{eval\PYZus{}loader}\PY{p}{)}\PY{p}{:}
+        \PY{n}{images} \PY{o}{=} \PY{n}{images}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}
+        \PY{c+c1}{\PYZsh{} Get latent representations and predictions}
+        \PY{n}{z}\PY{p}{,} \PY{n}{logits} \PY{o}{=} \PY{n}{classifier}\PY{p}{(}\PY{n}{images}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Calculate uncertainty (entropy) for each prediction}
+        \PY{n}{probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        \PY{n}{entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Store uncertainties and indices}
+        \PY{n}{uncertainties}\PY{o}{.}\PY{n}{extend}\PY{p}{(}\PY{n}{entropy}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{)}
+        \PY{n}{indices}\PY{o}{.}\PY{n}{extend}\PY{p}{(}\PY{n+nb}{range}\PY{p}{(}\PY{n}{i}\PY{o}{*}\PY{n}{eval\PYZus{}loader}\PY{o}{.}\PY{n}{batch\PYZus{}size}\PY{p}{,} \PY{n+nb}{min}\PY{p}{(}\PY{p}{(}\PY{n}{i}\PY{o}{+}\PY{l+m+mi}{1}\PY{p}{)}\PY{o}{*}\PY{n}{eval\PYZus{}loader}\PY{o}{.}\PY{n}{batch\PYZus{}size}\PY{p}{,} \PY{n+nb}{len}\PY{p}{(}\PY{n}{testset}\PY{p}{)}\PY{p}{)}\PY{p}{)}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Convert to numpy arrays}
+\PY{n}{uncertainties} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{array}\PY{p}{(}\PY{n}{uncertainties}\PY{p}{)}
+\PY{n}{indices} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{array}\PY{p}{(}\PY{n}{indices}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Sort by uncertainty (descending order)}
+\PY{n}{sorted\PYZus{}idx} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{argsort}\PY{p}{(}\PY{o}{\PYZhy{}}\PY{n}{uncertainties}\PY{p}{)}
+\PY{n}{sorted\PYZus{}uncertainties} \PY{o}{=} \PY{n}{uncertainties}\PY{p}{[}\PY{n}{sorted\PYZus{}idx}\PY{p}{]}
+\PY{n}{sorted\PYZus{}data\PYZus{}indices} \PY{o}{=} \PY{n}{indices}\PY{p}{[}\PY{n}{sorted\PYZus{}idx}\PY{p}{]}
+\end{Verbatim}
+\end{tcolorbox}
+
+    We then plot the plot the most uncertain predictions on the test set.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{12}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{matplotlib}\PY{n+nn}{.}\PY{n+nn}{pyplot}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{plt}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{torch}
+
+\PY{k}{def}\PY{+w}{ }\PY{n+nf}{plot\PYZus{}most\PYZus{}uncertain}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{sorted\PYZus{}data\PYZus{}indices}\PY{p}{,} \PY{n}{sorted\PYZus{}uncertainties}\PY{p}{,} \PY{n}{n\PYZus{}plot}\PY{o}{=}\PY{l+m+mi}{5}\PY{p}{)}\PY{p}{:}
+\PY{+w}{    }\PY{l+s+sd}{\PYZdq{}\PYZdq{}\PYZdq{}}
+\PY{l+s+sd}{    Plots the top\PYZhy{}n most uncertain predictions from the training set.}
+
+\PY{l+s+sd}{    Args:}
+\PY{l+s+sd}{        testset (torch.utils.data.Dataset): Dataset that returns (image, label) samples.}
+\PY{l+s+sd}{        sorted\PYZus{}data\PYZus{}indices (np.ndarray): Array of indices sorted in descending order by uncertainty.}
+\PY{l+s+sd}{        sorted\PYZus{}uncertainties (np.ndarray): Array of uncertainty (entropy) values, sorted to match sorted\PYZus{}data\PYZus{}indices.}
+\PY{l+s+sd}{        n\PYZus{}plot (int): Number of images to plot.}
+\PY{l+s+sd}{    \PYZdq{}\PYZdq{}\PYZdq{}}
+    \PY{c+c1}{\PYZsh{} Calculate number of rows needed}
+    \PY{n}{images\PYZus{}per\PYZus{}row} \PY{o}{=} \PY{l+m+mi}{10}
+    \PY{n}{n\PYZus{}rows} \PY{o}{=} \PY{p}{(}\PY{n}{n\PYZus{}plot} \PY{o}{\PYZhy{}} \PY{l+m+mi}{1}\PY{p}{)} \PY{o}{/}\PY{o}{/} \PY{n}{images\PYZus{}per\PYZus{}row} \PY{o}{+} \PY{l+m+mi}{1}
+    
+    \PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{15}\PY{p}{,} \PY{l+m+mi}{3} \PY{o}{*} \PY{n}{n\PYZus{}rows}\PY{p}{)}\PY{p}{)}
+    \PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}plot}\PY{p}{)}\PY{p}{:}
+        \PY{n}{data\PYZus{}idx} \PY{o}{=} \PY{n}{sorted\PYZus{}data\PYZus{}indices}\PY{p}{[}\PY{n}{i}\PY{p}{]}
+        \PY{n}{image}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{testset}\PY{p}{[}\PY{n}{data\PYZus{}idx}\PY{p}{]}
+        
+        \PY{c+c1}{\PYZsh{} If image is a torch.Tensor, convert it to a NumPy array.}
+        \PY{k}{if} \PY{n}{torch}\PY{o}{.}\PY{n}{is\PYZus{}tensor}\PY{p}{(}\PY{n}{image}\PY{p}{)}\PY{p}{:}
+            \PY{n}{image} \PY{o}{=} \PY{n}{image}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}
+            \PY{c+c1}{\PYZsh{} If the image has one channel [1, H, W], squeeze out the channel dimension.}
+            \PY{k}{if} \PY{n}{image}\PY{o}{.}\PY{n}{ndim} \PY{o}{==} \PY{l+m+mi}{3} \PY{o+ow}{and} \PY{n}{image}\PY{o}{.}\PY{n}{shape}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]} \PY{o}{==} \PY{l+m+mi}{1}\PY{p}{:}
+                \PY{n}{image} \PY{o}{=} \PY{n}{image}\PY{o}{.}\PY{n}{squeeze}\PY{p}{(}\PY{l+m+mi}{0}\PY{p}{)}
+        
+        \PY{n}{row} \PY{o}{=} \PY{n}{i} \PY{o}{/}\PY{o}{/} \PY{n}{images\PYZus{}per\PYZus{}row}
+        \PY{n}{col} \PY{o}{=} \PY{n}{i} \PY{o}{\PYZpc{}} \PY{n}{images\PYZus{}per\PYZus{}row}
+        \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{n}{n\PYZus{}rows}\PY{p}{,} \PY{n}{images\PYZus{}per\PYZus{}row}\PY{p}{,} \PY{n}{i} \PY{o}{+} \PY{l+m+mi}{1}\PY{p}{)}
+        \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{image}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+        \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{sorted\PYZus{}uncertainties}\PY{p}{[}\PY{n}{i}\PY{p}{]}\PY{l+s+si}{:}\PY{l+s+s2}{.2f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+        \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{off}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+    
+    \PY{n}{plt}\PY{o}{.}\PY{n}{suptitle}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Most Uncertain Predictions}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{13}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Plot the most uncertain predictions}
+\PY{n}{plot\PYZus{}most\PYZus{}uncertain}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{sorted\PYZus{}data\PYZus{}indices}\PY{p}{,} \PY{n}{sorted\PYZus{}uncertainties}\PY{p}{,} \PY{n}{n\PYZus{}plot}\PY{o}{=}\PY{l+m+mi}{20}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_20_0.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \subsubsection{Test new CLUE
+implementation}\label{test-new-clue-implementation}
+
+    Now we test the ``new'' CLUE implementation, which accepts only a
+classifier head, directly optimising the latent code. There is no need
+for a decoder at each step (and therefore inside the CLUE method). Once
+the latent code is optimised, we pass it through the decoder to get a
+reconstruction from this notebook.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{24}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Get the most uncertain image and its latent representation}
+\PY{n}{most\PYZus{}uncertain\PYZus{}idx} \PY{o}{=} \PY{n}{sorted\PYZus{}data\PYZus{}indices}\PY{p}{[}\PY{l+m+mi}{4}\PY{p}{]}
+\PY{n}{uncertain\PYZus{}image}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{testset}\PY{p}{[}\PY{n}{most\PYZus{}uncertain\PYZus{}idx}\PY{p}{]}
+\PY{n}{uncertain\PYZus{}image} \PY{o}{=} \PY{n}{uncertain\PYZus{}image}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}\PY{o}{.}\PY{n}{unsqueeze}\PY{p}{(}\PY{l+m+mi}{0}\PY{p}{)}  \PY{c+c1}{\PYZsh{} Add batch dimension}
+
+\PY{c+c1}{\PYZsh{} Get its latent representation}
+\PY{n}{classifier}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{n}{z0}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{classifier}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Initialize CLUE}
+\PY{n}{clue} \PY{o}{=} \PY{n}{new\PYZus{}CLUE}\PY{o}{.}\PY{n}{NewCLUE}\PY{p}{(}
+    \PY{n}{classifier}\PY{o}{=}\PY{n}{classifier}\PY{o}{.}\PY{n}{classifier}\PY{p}{,}
+    \PY{n}{z0}\PY{o}{=}\PY{n}{z0}\PY{p}{,}
+    \PY{n}{uncertainty\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{1.0}\PY{p}{,}
+    \PY{n}{distance\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{0.01}\PY{p}{,}
+    \PY{n}{lr}\PY{o}{=}\PY{l+m+mf}{0.1}\PY{p}{,}
+    \PY{n}{device}\PY{o}{=}\PY{n}{device}
+\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Optimize to find explanation}
+\PY{n}{z\PYZus{}explained} \PY{o}{=} \PY{n}{clue}\PY{o}{.}\PY{n}{optimize}\PY{p}{(}\PY{n}{steps}\PY{o}{=}\PY{l+m+mi}{50}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Generate reconstructions using decoder}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{c+c1}{\PYZsh{} Original reconstruction}
+    \PY{n}{original\PYZus{}recon} \PY{o}{=} \PY{n}{decoder}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+    \PY{c+c1}{\PYZsh{} CLUE reconstruction  }
+    \PY{n}{clue\PYZus{}recon} \PY{o}{=} \PY{n}{decoder}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Get predictions and uncertainties from latent codes}
+    \PY{n}{original\PYZus{}logits\PYZus{}latent} \PY{o}{=} \PY{n}{classifier}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+    \PY{n}{explained\PYZus{}logits\PYZus{}latent} \PY{o}{=} \PY{n}{classifier}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Get predictions from full classifier workflow on reconstructions}
+    \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{original\PYZus{}logits\PYZus{}recon} \PY{o}{=} \PY{n}{classifier}\PY{p}{(}\PY{n}{original\PYZus{}recon}\PY{p}{)}
+    \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{explained\PYZus{}logits\PYZus{}recon} \PY{o}{=} \PY{n}{classifier}\PY{p}{(}\PY{n}{clue\PYZus{}recon}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Calculate probabilities and entropies for latent predictions}
+    \PY{n}{original\PYZus{}probs\PYZus{}latent} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{original\PYZus{}logits\PYZus{}latent}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    \PY{n}{explained\PYZus{}probs\PYZus{}latent} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{explained\PYZus{}logits\PYZus{}latent}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    
+    \PY{n}{original\PYZus{}entropy\PYZus{}latent} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{original\PYZus{}probs\PYZus{}latent} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{original\PYZus{}probs\PYZus{}latent} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+    \PY{n}{explained\PYZus{}entropy\PYZus{}latent} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{explained\PYZus{}probs\PYZus{}latent} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{explained\PYZus{}probs\PYZus{}latent} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Calculate probabilities and entropies for reconstruction predictions}
+    \PY{n}{original\PYZus{}probs\PYZus{}recon} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{original\PYZus{}logits\PYZus{}recon}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    \PY{n}{explained\PYZus{}probs\PYZus{}recon} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{explained\PYZus{}logits\PYZus{}recon}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    
+    \PY{n}{original\PYZus{}entropy\PYZus{}recon} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{original\PYZus{}probs\PYZus{}recon} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{original\PYZus{}probs\PYZus{}recon} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+    \PY{n}{explained\PYZus{}entropy\PYZus{}recon} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{explained\PYZus{}probs\PYZus{}recon} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{explained\PYZus{}probs\PYZus{}recon} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot results}
+\PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{15}\PY{p}{,} \PY{l+m+mi}{5}\PY{p}{)}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{131}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original Image}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Latent Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy\PYZus{}latent}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Recon Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy\PYZus{}recon}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{132}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{original\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original Reconstruction}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Latent Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy\PYZus{}latent}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Recon Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy\PYZus{}recon}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{133}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{clue\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{CLUE Reconstruction}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Latent Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}entropy\PYZus{}latent}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Recon Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}entropy\PYZus{}recon}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{tight\PYZus{}layout}\PY{p}{(}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+Step 00: Loss: 1.0874, Entropy: 1.0874, Distance: 0.0000
+Step 01: Loss: 0.4852, Entropy: 0.4692, Distance: 1.6000
+Step 02: Loss: 0.1694, Entropy: 0.1388, Distance: 3.0606
+Step 03: Loss: 0.0844, Entropy: 0.0407, Distance: 4.3719
+Step 04: Loss: 0.0685, Entropy: 0.0137, Distance: 5.4819
+Step 05: Loss: 0.0695, Entropy: 0.0053, Distance: 6.4117
+Step 06: Loss: 0.0743, Entropy: 0.0024, Distance: 7.1928
+Step 07: Loss: 0.0797, Entropy: 0.0012, Distance: 7.8517
+Step 08: Loss: 0.0847, Entropy: 0.0006, Distance: 8.4093
+Step 09: Loss: 0.0892, Entropy: 0.0004, Distance: 8.8814
+Step 10: Loss: 0.0931, Entropy: 0.0002, Distance: 9.2808
+Step 11: Loss: 0.0963, Entropy: 0.0002, Distance: 9.6173
+Step 12: Loss: 0.0991, Entropy: 0.0001, Distance: 9.8994
+Step 13: Loss: 0.1014, Entropy: 0.0001, Distance: 10.1336
+Step 14: Loss: 0.1033, Entropy: 0.0001, Distance: 10.3258
+Step 15: Loss: 0.1049, Entropy: 0.0001, Distance: 10.4807
+Step 16: Loss: 0.1061, Entropy: 0.0000, Distance: 10.6023
+Step 17: Loss: 0.1070, Entropy: 0.0000, Distance: 10.6944
+Step 18: Loss: 0.1076, Entropy: 0.0000, Distance: 10.7600
+Step 19: Loss: 0.1080, Entropy: 0.0000, Distance: 10.8017
+Step 20: Loss: 0.1082, Entropy: 0.0000, Distance: 10.8220
+Step 21: Loss: 0.1083, Entropy: 0.0000, Distance: 10.8229
+Step 22: Loss: 0.1081, Entropy: 0.0000, Distance: 10.8065
+Step 23: Loss: 0.1078, Entropy: 0.0000, Distance: 10.7743
+Step 24: Loss: 0.1073, Entropy: 0.0000, Distance: 10.7279
+Step 25: Loss: 0.1067, Entropy: 0.0000, Distance: 10.6687
+Step 26: Loss: 0.1060, Entropy: 0.0000, Distance: 10.5980
+Step 27: Loss: 0.1052, Entropy: 0.0000, Distance: 10.5169
+Step 28: Loss: 0.1043, Entropy: 0.0000, Distance: 10.4265
+Step 29: Loss: 0.1033, Entropy: 0.0000, Distance: 10.3278
+Step 30: Loss: 0.1023, Entropy: 0.0000, Distance: 10.2215
+Step 31: Loss: 0.1011, Entropy: 0.0000, Distance: 10.1087
+Step 32: Loss: 0.0999, Entropy: 0.0000, Distance: 9.9899
+Step 33: Loss: 0.0987, Entropy: 0.0000, Distance: 9.8658
+Step 34: Loss: 0.0974, Entropy: 0.0001, Distance: 9.7371
+Step 35: Loss: 0.0961, Entropy: 0.0001, Distance: 9.6043
+Step 36: Loss: 0.0947, Entropy: 0.0001, Distance: 9.4678
+Step 37: Loss: 0.0934, Entropy: 0.0001, Distance: 9.3282
+Step 38: Loss: 0.0919, Entropy: 0.0001, Distance: 9.1858
+Step 39: Loss: 0.0905, Entropy: 0.0001, Distance: 9.0410
+Step 40: Loss: 0.0891, Entropy: 0.0001, Distance: 8.8941
+Step 41: Loss: 0.0876, Entropy: 0.0001, Distance: 8.7454
+Step 42: Loss: 0.0861, Entropy: 0.0002, Distance: 8.5952
+Step 43: Loss: 0.0846, Entropy: 0.0002, Distance: 8.4439
+Step 44: Loss: 0.0831, Entropy: 0.0002, Distance: 8.2916
+Step 45: Loss: 0.0816, Entropy: 0.0002, Distance: 8.1386
+Step 46: Loss: 0.0801, Entropy: 0.0003, Distance: 7.9851
+Step 47: Loss: 0.0786, Entropy: 0.0003, Distance: 7.8314
+Step 48: Loss: 0.0772, Entropy: 0.0004, Distance: 7.6777
+Step 49: Loss: 0.0757, Entropy: 0.0005, Distance: 7.5242
+    \end{Verbatim}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_23_1.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    So we see that, while the entropy of the optimised latent code is near
+zero, the reconstuction looks identical to the original recosntruction
+of the test image. Indeed, passing the \emph{reconstructed} image
+through the entire classification pipeline (encoder -\textgreater{}
+classification head) results in almost the same entropy as before. It
+seems that the latent point is adversarial, and gets project back to the
+original in-distribution image.
+
+Below, we plot the t-SNE of the latent space of the test set. We can see
+that the optimised latent code is close to the original latent code, but
+not identical.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{25}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Get latent codes for 500 training images to create TSNE visualization}
+\PY{n}{latent\PYZus{}codes} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+\PY{n}{labels\PYZus{}list} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{k}{for} \PY{n}{i}\PY{p}{,} \PY{p}{(}\PY{n}{images}\PY{p}{,} \PY{n}{labels}\PY{p}{)} \PY{o+ow}{in} \PY{n+nb}{enumerate}\PY{p}{(}\PY{n}{testloader}\PY{p}{)}\PY{p}{:}
+        \PY{k}{if} \PY{n}{i} \PY{o}{\PYZgt{}}\PY{o}{=} \PY{l+m+mi}{500}\PY{o}{/}\PY{n}{images}\PY{o}{.}\PY{n}{shape}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]}\PY{p}{:}  \PY{c+c1}{\PYZsh{} Stop after \PYZti{}500 images}
+            \PY{k}{break}
+        \PY{n}{images} \PY{o}{=} \PY{n}{images}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}
+        \PY{n}{z}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{classifier}\PY{p}{(}\PY{n}{images}\PY{p}{)}
+        \PY{n}{latent\PYZus{}codes}\PY{o}{.}\PY{n}{append}\PY{p}{(}\PY{n}{z}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{)}
+        \PY{n}{labels\PYZus{}list}\PY{o}{.}\PY{n}{append}\PY{p}{(}\PY{n}{labels}\PY{p}{)}
+\PY{n}{latent\PYZus{}codes} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{cat}\PY{p}{(}\PY{n}{latent\PYZus{}codes}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{0}\PY{p}{)}
+\PY{n}{labels} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{cat}\PY{p}{(}\PY{n}{labels\PYZus{}list}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{0}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Add z0 and z\PYZus{}explained to the latent codes}
+\PY{n}{all\PYZus{}latents} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{cat}\PY{p}{(}\PY{p}{[}\PY{n}{latent\PYZus{}codes}\PY{p}{,} \PY{n}{z0}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{z\PYZus{}explained}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{]}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{0}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Perform t\PYZhy{}SNE}
+\PY{k+kn}{from}\PY{+w}{ }\PY{n+nn}{sklearn}\PY{n+nn}{.}\PY{n+nn}{manifold}\PY{+w}{ }\PY{k+kn}{import} \PY{n}{TSNE}
+\PY{n}{tsne} \PY{o}{=} \PY{n}{TSNE}\PY{p}{(}\PY{n}{n\PYZus{}components}\PY{o}{=}\PY{l+m+mi}{2}\PY{p}{,} \PY{n}{random\PYZus{}state}\PY{o}{=}\PY{l+m+mi}{42}\PY{p}{)}
+\PY{n}{latents\PYZus{}2d} \PY{o}{=} \PY{n}{tsne}\PY{o}{.}\PY{n}{fit\PYZus{}transform}\PY{p}{(}\PY{n}{all\PYZus{}latents}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot t\PYZhy{}SNE}
+\PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{10}\PY{p}{,} \PY{l+m+mi}{8}\PY{p}{)}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Create scatter plot for each class}
+\PY{n}{testing\PYZus{}latents\PYZus{}2d} \PY{o}{=} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{p}{:}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{]}
+\PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{l+m+mi}{10}\PY{p}{)}\PY{p}{:}
+    \PY{n}{mask} \PY{o}{=} \PY{n}{labels} \PY{o}{==} \PY{n}{i}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{scatter}\PY{p}{(}\PY{n}{testing\PYZus{}latents\PYZus{}2d}\PY{p}{[}\PY{n}{mask}\PY{p}{,} \PY{l+m+mi}{0}\PY{p}{]}\PY{p}{,} \PY{n}{testing\PYZus{}latents\PYZus{}2d}\PY{p}{[}\PY{n}{mask}\PY{p}{,} \PY{l+m+mi}{1}\PY{p}{]}\PY{p}{,} 
+               \PY{n}{alpha}\PY{o}{=}\PY{l+m+mf}{0.5}\PY{p}{,} \PY{n}{label}\PY{o}{=}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Class }\PY{l+s+si}{\PYZob{}}\PY{n}{i}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{s}\PY{o}{=}\PY{l+m+mi}{20}\PY{p}{)}  \PY{c+c1}{\PYZsh{} Reduced point size to 20}
+
+\PY{c+c1}{\PYZsh{} Plot original and explained points}
+\PY{n}{plt}\PY{o}{.}\PY{n}{scatter}\PY{p}{(}\PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{0}\PY{p}{]}\PY{p}{,} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{1}\PY{p}{]}\PY{p}{,} \PY{n}{c}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{black}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{s}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{,} \PY{n}{label}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original (z0)}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{scatter}\PY{p}{(}\PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{1}\PY{p}{,} \PY{l+m+mi}{0}\PY{p}{]}\PY{p}{,} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{1}\PY{p}{,} \PY{l+m+mi}{1}\PY{p}{]}\PY{p}{,} \PY{n}{c}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{red}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{s}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{,} \PY{n}{label}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Explained (z)}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{plot}\PY{p}{(}\PY{p}{[}\PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{0}\PY{p}{]}\PY{p}{,} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{1}\PY{p}{,} \PY{l+m+mi}{0}\PY{p}{]}\PY{p}{]}\PY{p}{,} 
+         \PY{p}{[}\PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{1}\PY{p}{]}\PY{p}{,} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{1}\PY{p}{,} \PY{l+m+mi}{1}\PY{p}{]}\PY{p}{]}\PY{p}{,} 
+         \PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{k\PYZhy{}\PYZhy{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{alpha}\PY{o}{=}\PY{l+m+mf}{0.5}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Calculate and print distance between original and explained points in t\PYZhy{}SNE space}
+\PY{n}{tsne\PYZus{}distance} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{sqrt}\PY{p}{(}\PY{n}{np}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{(}\PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{2}\PY{p}{]} \PY{o}{\PYZhy{}} \PY{n}{latents\PYZus{}2d}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{1}\PY{p}{]}\PY{p}{)}\PY{o}{*}\PY{o}{*}\PY{l+m+mi}{2}\PY{p}{)}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s2}{Distance between original and explained points in t\PYZhy{}SNE space: }\PY{l+s+si}{\PYZob{}}\PY{n}{tsne\PYZus{}distance}\PY{l+s+si}{:}\PY{l+s+s2}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{t\PYZhy{}SNE visualization of latent space}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{legend}\PY{p}{(}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+
+Distance between original and explained points in t-SNE space: 0.117
+    \end{Verbatim}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_25_1.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \subsection{Testing CLUE on the SVAE}\label{testing-clue-on-the-svae}
+
+Let's see if we can improve on the previous results by using the SVAE.
+
+    \subsubsection{Load the SVAE and prepare data for
+testing}\label{load-the-svae-and-prepare-data-for-testing}
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{57}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{k+kn}{from}\PY{+w}{ }\PY{n+nn}{importlib}\PY{+w}{ }\PY{k+kn}{import} \PY{n}{reload}
+\PY{k+kn}{import}\PY{+w}{ }\PY{n+nn}{models}\PY{n+nn}{.}\PY{n+nn}{SVAE}\PY{+w}{ }\PY{k}{as}\PY{+w}{ }\PY{n+nn}{SVAE}
+\PY{n}{reload}\PY{p}{(}\PY{n}{SVAE}\PY{p}{)}
+\PY{k+kn}{from}\PY{+w}{ }\PY{n+nn}{models}\PY{n+nn}{.}\PY{n+nn}{SVAE}\PY{+w}{ }\PY{k+kn}{import} \PY{n}{SVAE}
+
+\PY{n}{svae} \PY{o}{=} \PY{n}{SVAE}\PY{p}{(}\PY{n}{latent\PYZus{}dim}\PY{o}{=}\PY{n}{latent\PYZus{}dim}\PY{p}{,} \PY{n}{num\PYZus{}classes}\PY{o}{=}\PY{l+m+mi}{10}\PY{p}{,} \PY{n}{device}\PY{o}{=}\PY{n}{device}\PY{p}{)}
+\PY{n}{svae}\PY{o}{.}\PY{n}{load\PYZus{}state\PYZus{}dict}\PY{p}{(}\PY{n}{torch}\PY{o}{.}\PY{n}{load}\PY{p}{(}\PY{n}{os}\PY{o}{.}\PY{n}{path}\PY{o}{.}\PY{n}{join}\PY{p}{(}\PY{n}{model\PYZus{}saves\PYZus{}dir}\PY{p}{,} \PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{svae.pth}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}\PY{p}{,} \PY{n}{map\PYZus{}location}\PY{o}{=}\PY{n}{device}\PY{p}{)}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+/var/folders/tb/ccwl9r592hn9v\_xpq9s1bzlr0000gn/T/ipykernel\_13985/2699334937.py:7
+: FutureWarning: You are using `torch.load` with `weights\_only=False` (the
+current default value), which uses the default pickle module implicitly. It is
+possible to construct malicious pickle data which will execute arbitrary code
+during unpickling (See
+https://github.com/pytorch/pytorch/blob/main/SECURITY.md\#untrusted-models for
+more details). In a future release, the default value for `weights\_only` will be
+flipped to `True`. This limits the functions that could be executed during
+unpickling. Arbitrary objects will no longer be allowed to be loaded via this
+mode unless they are explicitly allowlisted by the user via
+`torch.serialization.add\_safe\_globals`. We recommend you start setting
+`weights\_only=True` for any use case where you don't have full control of the
+loaded file. Please open an issue on GitHub for any issues related to this
+experimental feature.
+  svae.load\_state\_dict(torch.load(os.path.join(model\_saves\_dir, 'svae.pth'),
+map\_location=device))
+    \end{Verbatim}
+
+            \begin{tcolorbox}[breakable, size=fbox, boxrule=.5pt, pad at break*=1mm, opacityfill=0]
+\prompt{Out}{outcolor}{57}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+<All keys matched successfully>
+\end{Verbatim}
+\end{tcolorbox}
+        
+    Test the model on some images
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{58}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Get a batch of images from the testloader}
+\PY{n}{svae}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{c+c1}{\PYZsh{} Get one batch of images}
+    \PY{n}{images}\PY{p}{,} \PY{n}{labels} \PY{o}{=} \PY{n+nb}{next}\PY{p}{(}\PY{n+nb}{iter}\PY{p}{(}\PY{n}{testloader}\PY{p}{)}\PY{p}{)}
+    \PY{n}{images} \PY{o}{=} \PY{n}{images}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}
+    \PY{n}{labels} \PY{o}{=} \PY{n}{labels}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Pass through SVAE}
+    \PY{n}{recon\PYZus{}images}\PY{p}{,} \PY{n}{pred\PYZus{}labels}\PY{p}{,} \PY{n}{mu}\PY{p}{,} \PY{n}{log\PYZus{}var} \PY{o}{=} \PY{n}{svae}\PY{p}{(}\PY{n}{images}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Get predictions}
+    \PY{n}{pred\PYZus{}classes} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{argmax}\PY{p}{(}\PY{n}{pred\PYZus{}labels}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot the results}
+\PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{,} \PY{l+m+mi}{4}\PY{p}{)}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot original images}
+\PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{l+m+mi}{10}\PY{p}{)}\PY{p}{:}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{10}\PY{p}{,} \PY{n}{i}\PY{o}{+}\PY{l+m+mi}{1}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{images}\PY{p}{[}\PY{n}{i}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{squeeze}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Orig: }\PY{l+s+si}{\PYZob{}}\PY{n}{labels}\PY{p}{[}\PY{n}{i}\PY{p}{]}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot reconstructed images}
+\PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{l+m+mi}{10}\PY{p}{)}\PY{p}{:}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{2}\PY{p}{,} \PY{l+m+mi}{10}\PY{p}{,} \PY{n}{i}\PY{o}{+}\PY{l+m+mi}{11}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{recon\PYZus{}images}\PY{p}{[}\PY{n}{i}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{squeeze}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Pred: }\PY{l+s+si}{\PYZob{}}\PY{n}{pred\PYZus{}classes}\PY{p}{[}\PY{n}{i}\PY{p}{]}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{tight\PYZus{}layout}\PY{p}{(}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_30_0.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    Get the most uncertain images, we need a non-shuffled loader for this.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{59}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Create a non\PYZhy{}shuffled loader for uncertainty calculation}
+\PY{n}{eval\PYZus{}loader} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{utils}\PY{o}{.}\PY{n}{data}\PY{o}{.}\PY{n}{DataLoader}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{batch\PYZus{}size}\PY{o}{=}\PY{l+m+mi}{64}\PY{p}{,} \PY{n}{shuffle}\PY{o}{=}\PY{k+kc}{False}\PY{p}{,} \PY{n}{num\PYZus{}workers}\PY{o}{=}\PY{l+m+mi}{2}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Get uncertainty scores for all test data points}
+\PY{n}{uncertainties} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+\PY{n}{indices} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+
+\PY{n}{svae}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{k}{for} \PY{n}{i}\PY{p}{,} \PY{p}{(}\PY{n}{images}\PY{p}{,} \PY{n}{\PYZus{}}\PY{p}{)} \PY{o+ow}{in} \PY{n+nb}{enumerate}\PY{p}{(}\PY{n}{eval\PYZus{}loader}\PY{p}{)}\PY{p}{:}
+        \PY{n}{images} \PY{o}{=} \PY{n}{images}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}
+        \PY{c+c1}{\PYZsh{} Get predictions from SVAE}
+        \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{logits}\PY{p}{,} \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{svae}\PY{p}{(}\PY{n}{images}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Calculate uncertainty (entropy) for each prediction}
+        \PY{n}{probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        \PY{n}{entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Store uncertainties and indices}
+        \PY{n}{uncertainties}\PY{o}{.}\PY{n}{extend}\PY{p}{(}\PY{n}{entropy}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{)}
+        \PY{n}{indices}\PY{o}{.}\PY{n}{extend}\PY{p}{(}\PY{n+nb}{range}\PY{p}{(}\PY{n}{i}\PY{o}{*}\PY{n}{eval\PYZus{}loader}\PY{o}{.}\PY{n}{batch\PYZus{}size}\PY{p}{,} \PY{n+nb}{min}\PY{p}{(}\PY{p}{(}\PY{n}{i}\PY{o}{+}\PY{l+m+mi}{1}\PY{p}{)}\PY{o}{*}\PY{n}{eval\PYZus{}loader}\PY{o}{.}\PY{n}{batch\PYZus{}size}\PY{p}{,} \PY{n+nb}{len}\PY{p}{(}\PY{n}{trainset}\PY{p}{)}\PY{p}{)}\PY{p}{)}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Convert to numpy arrays}
+\PY{n}{uncertainties} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{array}\PY{p}{(}\PY{n}{uncertainties}\PY{p}{)}
+\PY{n}{indices} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{array}\PY{p}{(}\PY{n}{indices}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Sort by uncertainty (descending order)}
+\PY{n}{sorted\PYZus{}idx} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{argsort}\PY{p}{(}\PY{o}{\PYZhy{}}\PY{n}{uncertainties}\PY{p}{)}
+\PY{n}{sorted\PYZus{}uncertainties\PYZus{}svae} \PY{o}{=} \PY{n}{uncertainties}\PY{p}{[}\PY{n}{sorted\PYZus{}idx}\PY{p}{]}
+\PY{n}{sorted\PYZus{}data\PYZus{}indices\PYZus{}svae} \PY{o}{=} \PY{n}{indices}\PY{p}{[}\PY{n}{sorted\PYZus{}idx}\PY{p}{]}
+
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s2}{Most uncertain predictions have entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{sorted\PYZus{}uncertainties\PYZus{}svae}\PY{p}{[}\PY{p}{:}\PY{l+m+mi}{5}\PY{p}{]}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Least uncertain predictions have entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{sorted\PYZus{}uncertainties\PYZus{}svae}\PY{p}{[}\PY{o}{\PYZhy{}}\PY{l+m+mi}{5}\PY{p}{:}\PY{p}{]}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+
+Most uncertain predictions have entropy: [1.591673  1.4518467 1.3716214
+1.3248947 1.315818 ]
+Least uncertain predictions have entropy: [2.5849940e-07 2.1408985e-07
+1.5443415e-07 1.2334432e-07 7.6232546e-08]
+    \end{Verbatim}
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{60}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Plot the most uncertain predictions}
+\PY{n}{plot\PYZus{}most\PYZus{}uncertain}\PY{p}{(}\PY{n}{testset}\PY{p}{,} \PY{n}{sorted\PYZus{}data\PYZus{}indices\PYZus{}svae}\PY{p}{,} \PY{n}{sorted\PYZus{}uncertainties\PYZus{}svae}\PY{p}{,} \PY{n}{n\PYZus{}plot}\PY{o}{=}\PY{l+m+mi}{20}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_33_0.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \subsubsection{Apply CLUE to SVAE}\label{apply-clue-to-svae}
+
+    A single example of a counterfactual explanation
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{ }{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Get the most uncertain image and its latent representation}
+\PY{n}{most\PYZus{}uncertain\PYZus{}idx} \PY{o}{=} \PY{n}{sorted\PYZus{}data\PYZus{}indices\PYZus{}svae}\PY{p}{[}\PY{l+m+mi}{8}\PY{p}{]}
+\PY{n}{uncertain\PYZus{}image}\PY{p}{,} \PY{n}{true\PYZus{}label} \PY{o}{=} \PY{n}{testset}\PY{p}{[}\PY{n}{most\PYZus{}uncertain\PYZus{}idx}\PY{p}{]}
+\PY{n}{uncertain\PYZus{}image} \PY{o}{=} \PY{n}{uncertain\PYZus{}image}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}\PY{o}{.}\PY{n}{unsqueeze}\PY{p}{(}\PY{l+m+mi}{0}\PY{p}{)}  \PY{c+c1}{\PYZsh{} Add batch dimension}
+
+\PY{c+c1}{\PYZsh{} Get its latent representation}
+\PY{n}{svae}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{c+c1}{\PYZsh{} We don\PYZsq{}t reparameterize here, we use the mean of the latent distribution. This is because this is what the classifier is trained on.}
+    \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{z0}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{svae}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Initialize CLUE}
+\PY{n}{clue} \PY{o}{=} \PY{n}{new\PYZus{}CLUE}\PY{o}{.}\PY{n}{NewCLUE}\PY{p}{(}
+    \PY{n}{classifier}\PY{o}{=}\PY{n}{svae}\PY{o}{.}\PY{n}{classifier}\PY{p}{,}
+    \PY{n}{z0}\PY{o}{=}\PY{n}{z0}\PY{p}{,}
+    \PY{n}{uncertainty\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{1.0}\PY{p}{,}
+    \PY{n}{distance\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{0.01}\PY{p}{,}
+    \PY{n}{lr}\PY{o}{=}\PY{l+m+mf}{0.1}\PY{p}{,}
+    \PY{n}{device}\PY{o}{=}\PY{n}{device}
+\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Optimize to find explanation}
+\PY{n}{z\PYZus{}explained} \PY{o}{=} \PY{n}{clue}\PY{o}{.}\PY{n}{optimize}\PY{p}{(}\PY{n}{steps}\PY{o}{=}\PY{l+m+mi}{50}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Generate reconstructions using decoder}
+\PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+    \PY{c+c1}{\PYZsh{} Original reconstruction}
+    \PY{n}{original\PYZus{}recon} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{decode}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+    \PY{c+c1}{\PYZsh{} CLUE reconstruction  }
+    \PY{n}{clue\PYZus{}recon} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{decode}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+    
+    \PY{c+c1}{\PYZsh{} Get predictions and uncertainties}
+    \PY{c+c1}{\PYZsh{} Use only the classifier head for the latent vectors}
+    \PY{n}{original\PYZus{}logits} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+    \PY{n}{explained\PYZus{}logits} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+    
+    \PY{n}{original\PYZus{}probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{original\PYZus{}logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    \PY{n}{explained\PYZus{}probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{explained\PYZus{}logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+    
+    \PY{n}{original\PYZus{}entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{original\PYZus{}probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{original\PYZus{}probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+    \PY{n}{explained\PYZus{}entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{explained\PYZus{}probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{explained\PYZus{}probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+
+    \PY{c+c1}{\PYZsh{} Get predicted classes}
+    \PY{n}{original\PYZus{}pred} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{argmax}\PY{p}{(}\PY{n}{original\PYZus{}probs}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}
+    \PY{n}{explained\PYZus{}pred} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{argmax}\PY{p}{(}\PY{n}{explained\PYZus{}probs}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Plot results}
+\PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{15}\PY{p}{,} \PY{l+m+mi}{10}\PY{p}{)}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{231}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original Image}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{True Class: }\PY{l+s+si}{\PYZob{}}\PY{n}{true\PYZus{}label}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{, Predicted: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}pred}\PY{l+s+si}{\PYZcb{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{232}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{clue\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Counterfactual}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Predicted: }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}pred}\PY{l+s+si}{\PYZcb{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Entropy: }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}entropy}\PY{l+s+si}{:}\PY{l+s+s1}{.3f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{233}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{torch}\PY{o}{.}\PY{n}{abs}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)} \PY{o}{\PYZhy{}} \PY{n}{clue\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original vs Counterfactual}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Difference}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{234}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{original\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original Reconstruction}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{235}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{torch}\PY{o}{.}\PY{n}{abs}\PY{p}{(}\PY{n}{original\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)} \PY{o}{\PYZhy{}} \PY{n}{clue\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original vs Counterfactual}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{Reconstruction Difference}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{tight\PYZus{}layout}\PY{p}{(}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Print probabilities}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s2}{Class probabilities:}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Original (True class: }\PY{l+s+si}{\PYZob{}}\PY{n}{true\PYZus{}label}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{, Predicted: }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}pred}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{):}\PY{l+s+s2}{\PYZdq{}}\PY{p}{,} \PY{n}{original\PYZus{}probs}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{round}\PY{p}{(}\PY{l+m+mi}{3}\PY{p}{)}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Explained (Predicted: }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}pred}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s2}{):}\PY{l+s+s2}{\PYZdq{}}\PY{p}{,} \PY{n}{explained\PYZus{}probs}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{round}\PY{p}{(}\PY{l+m+mi}{3}\PY{p}{)}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+Step 00: Loss: 1.1954, Entropy: 1.1954, Distance: 0.0000
+Step 01: Loss: 0.6392, Entropy: 0.6232, Distance: 1.6000
+Step 02: Loss: 0.1856, Entropy: 0.1591, Distance: 2.6446
+Step 03: Loss: 0.0623, Entropy: 0.0259, Distance: 3.6343
+Step 04: Loss: 0.0497, Entropy: 0.0049, Distance: 4.4866
+Step 05: Loss: 0.0531, Entropy: 0.0011, Distance: 5.1951
+Step 06: Loss: 0.0581, Entropy: 0.0003, Distance: 5.7805
+Step 07: Loss: 0.0627, Entropy: 0.0001, Distance: 6.2632
+Step 08: Loss: 0.0666, Entropy: 0.0000, Distance: 6.6596
+Step 09: Loss: 0.0698, Entropy: 0.0000, Distance: 6.9827
+Step 10: Loss: 0.0724, Entropy: 0.0000, Distance: 7.2431
+Step 11: Loss: 0.0745, Entropy: 0.0000, Distance: 7.4490
+Step 12: Loss: 0.0761, Entropy: 0.0000, Distance: 7.6076
+Step 13: Loss: 0.0773, Entropy: 0.0000, Distance: 7.7248
+Step 14: Loss: 0.0781, Entropy: 0.0000, Distance: 7.8055
+Step 15: Loss: 0.0785, Entropy: 0.0000, Distance: 7.8541
+Step 16: Loss: 0.0787, Entropy: 0.0000, Distance: 7.8742
+Step 17: Loss: 0.0787, Entropy: 0.0000, Distance: 7.8693
+Step 18: Loss: 0.0784, Entropy: 0.0000, Distance: 7.8423
+Step 19: Loss: 0.0780, Entropy: 0.0000, Distance: 7.7956
+Step 20: Loss: 0.0773, Entropy: 0.0000, Distance: 7.7317
+Step 21: Loss: 0.0765, Entropy: 0.0000, Distance: 7.6526
+Step 22: Loss: 0.0756, Entropy: 0.0000, Distance: 7.5602
+Step 23: Loss: 0.0746, Entropy: 0.0000, Distance: 7.4561
+Step 24: Loss: 0.0734, Entropy: 0.0000, Distance: 7.3420
+Step 25: Loss: 0.0722, Entropy: 0.0000, Distance: 7.2192
+Step 26: Loss: 0.0709, Entropy: 0.0000, Distance: 7.0889
+Step 27: Loss: 0.0695, Entropy: 0.0000, Distance: 6.9524
+Step 28: Loss: 0.0681, Entropy: 0.0000, Distance: 6.8108
+Step 29: Loss: 0.0667, Entropy: 0.0000, Distance: 6.6651
+Step 30: Loss: 0.0652, Entropy: 0.0000, Distance: 6.5162
+Step 31: Loss: 0.0637, Entropy: 0.0000, Distance: 6.3651
+Step 32: Loss: 0.0621, Entropy: 0.0000, Distance: 6.2126
+Step 33: Loss: 0.0606, Entropy: 0.0000, Distance: 6.0595
+Step 34: Loss: 0.0591, Entropy: 0.0000, Distance: 5.9066
+Step 35: Loss: 0.0575, Entropy: 0.0000, Distance: 5.7547
+Step 36: Loss: 0.0560, Entropy: 0.0000, Distance: 5.6045
+Step 37: Loss: 0.0546, Entropy: 0.0000, Distance: 5.4565
+Step 38: Loss: 0.0531, Entropy: 0.0000, Distance: 5.3114
+Step 39: Loss: 0.0517, Entropy: 0.0000, Distance: 5.1697
+Step 40: Loss: 0.0503, Entropy: 0.0000, Distance: 5.0319
+Step 41: Loss: 0.0490, Entropy: 0.0000, Distance: 4.8984
+Step 42: Loss: 0.0477, Entropy: 0.0000, Distance: 4.7697
+Step 43: Loss: 0.0465, Entropy: 0.0000, Distance: 4.6461
+Step 44: Loss: 0.0453, Entropy: 0.0000, Distance: 4.5279
+Step 45: Loss: 0.0442, Entropy: 0.0000, Distance: 4.4153
+Step 46: Loss: 0.0431, Entropy: 0.0000, Distance: 4.3086
+Step 47: Loss: 0.0421, Entropy: 0.0000, Distance: 4.2078
+Step 48: Loss: 0.0411, Entropy: 0.0000, Distance: 4.1129
+Step 49: Loss: 0.0402, Entropy: 0.0000, Distance: 4.0241
+    \end{Verbatim}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_36_1.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{Verbatim}[commandchars=\\\{\}]
+
+Class probabilities:
+Original (True class: 9, Predicted: 5): [0.001 0.    0.003 0.157 0.    0.437 0.
+0.    0.049 0.352]
+Explained (Predicted: 5): [0. 0. 0. 0. 0. 1. 0. 0. 0. 0.]
+    \end{Verbatim}
+
+    It works! Much better than the joint-training autoencoder. Additionally,
+the counterfactual seems to be compelled to remain within the class of
+the original prediction (the index 8 is a good example of this.
+Intuitively, it looks like a 9, but the prediction is for a 5.
+Faithfully to the original prediction, the counterfactual is also a 5,
+showing the minimal changes required to product a more confident
+prediction of a 5.)
+
+    Let's explain the 20 most uncertain images in the test set.
+
+    \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
+\prompt{In}{incolor}{33}{\boxspacing}
+\begin{Verbatim}[commandchars=\\\{\}]
+\PY{c+c1}{\PYZsh{} Get 20 most uncertain images and generate CLUEs for each}
+\PY{n}{plt}\PY{o}{.}\PY{n}{figure}\PY{p}{(}\PY{n}{figsize}\PY{o}{=}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{,} \PY{l+m+mi}{80}\PY{p}{)}\PY{p}{)}  \PY{c+c1}{\PYZsh{} Increased height significantly to give more space per row}
+
+\PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{)}\PY{p}{:}
+    \PY{c+c1}{\PYZsh{} Get uncertain image and its latent representation }
+    \PY{n}{uncertain\PYZus{}idx} \PY{o}{=} \PY{n}{sorted\PYZus{}data\PYZus{}indices\PYZus{}svae}\PY{p}{[}\PY{n}{i}\PY{p}{]}
+    \PY{n}{uncertain\PYZus{}image}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{testset}\PY{p}{[}\PY{n}{uncertain\PYZus{}idx}\PY{p}{]}
+    \PY{n}{uncertain\PYZus{}image} \PY{o}{=} \PY{n}{uncertain\PYZus{}image}\PY{o}{.}\PY{n}{to}\PY{p}{(}\PY{n}{device}\PY{p}{)}\PY{o}{.}\PY{n}{unsqueeze}\PY{p}{(}\PY{l+m+mi}{0}\PY{p}{)}
+
+    \PY{c+c1}{\PYZsh{} Get latent representation}
+    \PY{n}{svae}\PY{o}{.}\PY{n}{eval}\PY{p}{(}\PY{p}{)}
+    \PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+        \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{\PYZus{}}\PY{p}{,} \PY{n}{z0}\PY{p}{,} \PY{n}{\PYZus{}} \PY{o}{=} \PY{n}{svae}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{)}
+
+    \PY{c+c1}{\PYZsh{} Initialize and run CLUE}
+    \PY{n}{clue} \PY{o}{=} \PY{n}{new\PYZus{}CLUE}\PY{o}{.}\PY{n}{SimpleCLUE}\PY{p}{(}
+        \PY{n}{model}\PY{o}{=}\PY{n}{svae}\PY{p}{,}
+        \PY{n}{z0}\PY{o}{=}\PY{n}{z0}\PY{p}{,}
+        \PY{n}{uncertainty\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{1.0}\PY{p}{,}
+        \PY{n}{distance\PYZus{}weight}\PY{o}{=}\PY{l+m+mf}{0.02}\PY{p}{,}
+        \PY{n}{lr}\PY{o}{=}\PY{l+m+mf}{0.1}\PY{p}{,}
+        \PY{n}{device}\PY{o}{=}\PY{n}{device}
+    \PY{p}{)}
+    \PY{n}{z\PYZus{}explained} \PY{o}{=} \PY{n}{clue}\PY{o}{.}\PY{n}{optimize}\PY{p}{(}\PY{n}{steps}\PY{o}{=}\PY{l+m+mi}{50}\PY{p}{)}
+
+    \PY{c+c1}{\PYZsh{} Generate reconstructions}
+    \PY{k}{with} \PY{n}{torch}\PY{o}{.}\PY{n}{no\PYZus{}grad}\PY{p}{(}\PY{p}{)}\PY{p}{:}
+        \PY{n}{original\PYZus{}recon} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{decode}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+        \PY{n}{clue\PYZus{}recon} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{decode}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Get predictions and uncertainties}
+        \PY{n}{original\PYZus{}logits} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z0}\PY{p}{)}
+        \PY{n}{explained\PYZus{}logits} \PY{o}{=} \PY{n}{svae}\PY{o}{.}\PY{n}{classifier}\PY{p}{(}\PY{n}{z\PYZus{}explained}\PY{p}{)}
+        \PY{n}{original\PYZus{}probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{original\PYZus{}logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        \PY{n}{explained\PYZus{}probs} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{nn}\PY{o}{.}\PY{n}{functional}\PY{o}{.}\PY{n}{softmax}\PY{p}{(}\PY{n}{explained\PYZus{}logits}\PY{p}{,} \PY{n}{dim}\PY{o}{=}\PY{l+m+mi}{1}\PY{p}{)}
+        \PY{n}{original\PYZus{}entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{original\PYZus{}probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{original\PYZus{}probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+        \PY{n}{explained\PYZus{}entropy} \PY{o}{=} \PY{o}{\PYZhy{}}\PY{p}{(}\PY{n}{explained\PYZus{}probs} \PY{o}{*} \PY{n}{torch}\PY{o}{.}\PY{n}{log}\PY{p}{(}\PY{n}{explained\PYZus{}probs} \PY{o}{+} \PY{l+m+mf}{1e\PYZhy{}10}\PY{p}{)}\PY{p}{)}\PY{o}{.}\PY{n}{sum}\PY{p}{(}\PY{p}{)}
+        
+        \PY{c+c1}{\PYZsh{} Get predicted classes}
+        \PY{n}{original\PYZus{}class} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{argmax}\PY{p}{(}\PY{n}{original\PYZus{}probs}\PY{p}{)}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}
+        \PY{n}{explained\PYZus{}class} \PY{o}{=} \PY{n}{torch}\PY{o}{.}\PY{n}{argmax}\PY{p}{(}\PY{n}{explained\PYZus{}probs}\PY{p}{)}\PY{o}{.}\PY{n}{item}\PY{p}{(}\PY{p}{)}
+
+    \PY{c+c1}{\PYZsh{} Plot this example}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{,} \PY{l+m+mi}{3}\PY{p}{,} \PY{l+m+mi}{3}\PY{o}{*}\PY{n}{i}\PY{o}{+}\PY{l+m+mi}{1}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{uncertain\PYZus{}image}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Original (Class }\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}class}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{)}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{H=}\PY{l+s+si}{\PYZob{}}\PY{n}{original\PYZus{}entropy}\PY{l+s+si}{:}\PY{l+s+s1}{.2f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{fontsize}\PY{o}{=}\PY{l+m+mi}{12}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+    \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{,} \PY{l+m+mi}{3}\PY{p}{,} \PY{l+m+mi}{3}\PY{o}{*}\PY{n}{i}\PY{o}{+}\PY{l+m+mi}{2}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{original\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{Reconstruction}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{fontsize}\PY{o}{=}\PY{l+m+mi}{12}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+    \PY{n}{plt}\PY{o}{.}\PY{n}{subplot}\PY{p}{(}\PY{l+m+mi}{20}\PY{p}{,} \PY{l+m+mi}{3}\PY{p}{,} \PY{l+m+mi}{3}\PY{o}{*}\PY{n}{i}\PY{o}{+}\PY{l+m+mi}{3}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{imshow}\PY{p}{(}\PY{n}{clue\PYZus{}recon}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{,}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{detach}\PY{p}{(}\PY{p}{)}\PY{p}{,} \PY{n}{cmap}\PY{o}{=}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{gray}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{title}\PY{p}{(}\PY{l+s+sa}{f}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{CLUE (Class }\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}class}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{)}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s1}{H=}\PY{l+s+si}{\PYZob{}}\PY{n}{explained\PYZus{}entropy}\PY{l+s+si}{:}\PY{l+s+s1}{.2f}\PY{l+s+si}{\PYZcb{}}\PY{l+s+s1}{\PYZsq{}}\PY{p}{,} \PY{n}{fontsize}\PY{o}{=}\PY{l+m+mi}{12}\PY{p}{)}
+    \PY{n}{plt}\PY{o}{.}\PY{n}{axis}\PY{p}{(}\PY{l+s+s1}{\PYZsq{}}\PY{l+s+s1}{off}\PY{l+s+s1}{\PYZsq{}}\PY{p}{)}
+
+\PY{n}{plt}\PY{o}{.}\PY{n}{tight\PYZus{}layout}\PY{p}{(}\PY{p}{)}
+\PY{n}{plt}\PY{o}{.}\PY{n}{show}\PY{p}{(}\PY{p}{)}
+
+\PY{c+c1}{\PYZsh{} Print probabilities for last example}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s2}{Class probabilities for last example:}\PY{l+s+s2}{\PYZdq{}}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Original (Class }\PY{l+s+si}{\PYZob{}\PYZcb{}}\PY{l+s+s2}{):}\PY{l+s+s2}{\PYZdq{}}\PY{o}{.}\PY{n}{format}\PY{p}{(}\PY{n}{original\PYZus{}class}\PY{p}{)}\PY{p}{,} \PY{n}{original\PYZus{}probs}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{round}\PY{p}{(}\PY{l+m+mi}{3}\PY{p}{)}\PY{p}{)}
+\PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{Explained (Class }\PY{l+s+si}{\PYZob{}\PYZcb{}}\PY{l+s+s2}{):}\PY{l+s+s2}{\PYZdq{}}\PY{o}{.}\PY{n}{format}\PY{p}{(}\PY{n}{explained\PYZus{}class}\PY{p}{)}\PY{p}{,} \PY{n}{explained\PYZus{}probs}\PY{o}{.}\PY{n}{cpu}\PY{p}{(}\PY{p}{)}\PY{o}{.}\PY{n}{numpy}\PY{p}{(}\PY{p}{)}\PY{p}{[}\PY{l+m+mi}{0}\PY{p}{]}\PY{o}{.}\PY{n}{round}\PY{p}{(}\PY{l+m+mi}{3}\PY{p}{)}\PY{p}{)}
+\end{Verbatim}
+\end{tcolorbox}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+Step 00: Loss: 1.5917, Entropy: 1.5917, Distance: 0.0000
+Step 01: Loss: 0.9075, Entropy: 0.8755, Distance: 1.6000
+Step 02: Loss: 0.5098, Entropy: 0.4528, Distance: 2.8518
+Step 03: Loss: 0.1811, Entropy: 0.1045, Distance: 3.8308
+Step 04: Loss: 0.1126, Entropy: 0.0178, Distance: 4.7378
+Step 05: Loss: 0.1134, Entropy: 0.0035, Distance: 5.4932
+Step 06: Loss: 0.1228, Entropy: 0.0009, Distance: 6.0998
+Step 07: Loss: 0.1318, Entropy: 0.0003, Distance: 6.5787
+Step 08: Loss: 0.1391, Entropy: 0.0001, Distance: 6.9507
+Step 09: Loss: 0.1447, Entropy: 0.0000, Distance: 7.2326
+Step 10: Loss: 0.1488, Entropy: 0.0000, Distance: 7.4383
+Step 11: Loss: 0.1516, Entropy: 0.0000, Distance: 7.5792
+Step 12: Loss: 0.1533, Entropy: 0.0000, Distance: 7.6647
+Step 13: Loss: 0.1541, Entropy: 0.0000, Distance: 7.7027
+Step 14: Loss: 0.1540, Entropy: 0.0000, Distance: 7.6999
+Step 15: Loss: 0.1532, Entropy: 0.0000, Distance: 7.6621
+Step 16: Loss: 0.1519, Entropy: 0.0000, Distance: 7.5942
+Step 17: Loss: 0.1500, Entropy: 0.0000, Distance: 7.5005
+Step 18: Loss: 0.1477, Entropy: 0.0000, Distance: 7.3850
+Step 19: Loss: 0.1450, Entropy: 0.0000, Distance: 7.2511
+Step 20: Loss: 0.1420, Entropy: 0.0000, Distance: 7.1021
+Step 21: Loss: 0.1388, Entropy: 0.0000, Distance: 6.9408
+Step 22: Loss: 0.1354, Entropy: 0.0000, Distance: 6.7698
+Step 23: Loss: 0.1318, Entropy: 0.0000, Distance: 6.5918
+Step 24: Loss: 0.1282, Entropy: 0.0000, Distance: 6.4090
+Step 25: Loss: 0.1245, Entropy: 0.0000, Distance: 6.2233
+Step 26: Loss: 0.1207, Entropy: 0.0000, Distance: 6.0368
+Step 27: Loss: 0.1170, Entropy: 0.0000, Distance: 5.8510
+Step 28: Loss: 0.1134, Entropy: 0.0000, Distance: 5.6674
+Step 29: Loss: 0.1098, Entropy: 0.0000, Distance: 5.4874
+Step 30: Loss: 0.1062, Entropy: 0.0000, Distance: 5.3120
+Step 31: Loss: 0.1028, Entropy: 0.0000, Distance: 5.1422
+Step 32: Loss: 0.0996, Entropy: 0.0000, Distance: 4.9787
+Step 33: Loss: 0.0965, Entropy: 0.0000, Distance: 4.8222
+Step 34: Loss: 0.0935, Entropy: 0.0000, Distance: 4.6734
+Step 35: Loss: 0.0907, Entropy: 0.0000, Distance: 4.5327
+Step 36: Loss: 0.0880, Entropy: 0.0000, Distance: 4.4006
+Step 37: Loss: 0.0856, Entropy: 0.0000, Distance: 4.2771
+Step 38: Loss: 0.0833, Entropy: 0.0000, Distance: 4.1625
+Step 39: Loss: 0.0811, Entropy: 0.0000, Distance: 4.0565
+Step 40: Loss: 0.0792, Entropy: 0.0000, Distance: 3.9589
+Step 41: Loss: 0.0774, Entropy: 0.0000, Distance: 3.8692
+Step 42: Loss: 0.0758, Entropy: 0.0000, Distance: 3.7869
+Step 43: Loss: 0.0743, Entropy: 0.0000, Distance: 3.7112
+Step 44: Loss: 0.0729, Entropy: 0.0000, Distance: 3.6416
+Step 45: Loss: 0.0716, Entropy: 0.0001, Distance: 3.5773
+Step 46: Loss: 0.0704, Entropy: 0.0001, Distance: 3.5176
+Step 47: Loss: 0.0693, Entropy: 0.0001, Distance: 3.4619
+Step 48: Loss: 0.0683, Entropy: 0.0001, Distance: 3.4094
+Step 49: Loss: 0.0673, Entropy: 0.0001, Distance: 3.3597
+Step 00: Loss: 1.4518, Entropy: 1.4518, Distance: 0.0000
+Step 01: Loss: 0.9830, Entropy: 0.9510, Distance: 1.6000
+Step 02: Loss: 0.2733, Entropy: 0.2177, Distance: 2.7782
+Step 03: Loss: 0.1048, Entropy: 0.0264, Distance: 3.9175
+Step 04: Loss: 0.1019, Entropy: 0.0048, Distance: 4.8539
+Step 05: Loss: 0.1132, Entropy: 0.0013, Distance: 5.5955
+Step 06: Loss: 0.1240, Entropy: 0.0004, Distance: 6.1787
+Step 07: Loss: 0.1328, Entropy: 0.0002, Distance: 6.6333
+Step 08: Loss: 0.1397, Entropy: 0.0001, Distance: 6.9819
+Step 09: Loss: 0.1449, Entropy: 0.0000, Distance: 7.2418
+Step 10: Loss: 0.1486, Entropy: 0.0000, Distance: 7.4268
+Step 11: Loss: 0.1510, Entropy: 0.0000, Distance: 7.5479
+Step 12: Loss: 0.1523, Entropy: 0.0000, Distance: 7.6140
+Step 13: Loss: 0.1527, Entropy: 0.0000, Distance: 7.6329
+Step 14: Loss: 0.1522, Entropy: 0.0000, Distance: 7.6110
+Step 15: Loss: 0.1511, Entropy: 0.0000, Distance: 7.5539
+Step 16: Loss: 0.1493, Entropy: 0.0000, Distance: 7.4664
+Step 17: Loss: 0.1471, Entropy: 0.0000, Distance: 7.3530
+Step 18: Loss: 0.1444, Entropy: 0.0000, Distance: 7.2174
+Step 19: Loss: 0.1413, Entropy: 0.0000, Distance: 7.0634
+Step 20: Loss: 0.1379, Entropy: 0.0000, Distance: 6.8940
+Step 21: Loss: 0.1343, Entropy: 0.0000, Distance: 6.7125
+Step 22: Loss: 0.1304, Entropy: 0.0000, Distance: 6.5214
+Step 23: Loss: 0.1265, Entropy: 0.0000, Distance: 6.3235
+Step 24: Loss: 0.1224, Entropy: 0.0000, Distance: 6.1212
+Step 25: Loss: 0.1183, Entropy: 0.0000, Distance: 5.9166
+Step 26: Loss: 0.1142, Entropy: 0.0000, Distance: 5.7118
+Step 27: Loss: 0.1102, Entropy: 0.0000, Distance: 5.5088
+Step 28: Loss: 0.1062, Entropy: 0.0000, Distance: 5.3092
+Step 29: Loss: 0.1023, Entropy: 0.0000, Distance: 5.1146
+Step 30: Loss: 0.0986, Entropy: 0.0000, Distance: 4.9264
+Step 31: Loss: 0.0949, Entropy: 0.0000, Distance: 4.7460
+Step 32: Loss: 0.0915, Entropy: 0.0000, Distance: 4.5744
+Step 33: Loss: 0.0883, Entropy: 0.0000, Distance: 4.4126
+Step 34: Loss: 0.0853, Entropy: 0.0001, Distance: 4.2614
+Step 35: Loss: 0.0825, Entropy: 0.0001, Distance: 4.1217
+Step 36: Loss: 0.0799, Entropy: 0.0001, Distance: 3.9937
+Step 37: Loss: 0.0776, Entropy: 0.0001, Distance: 3.8776
+Step 38: Loss: 0.0756, Entropy: 0.0001, Distance: 3.7731
+Step 39: Loss: 0.0737, Entropy: 0.0001, Distance: 3.6797
+Step 40: Loss: 0.0721, Entropy: 0.0001, Distance: 3.5966
+Step 41: Loss: 0.0706, Entropy: 0.0002, Distance: 3.5228
+Step 42: Loss: 0.0693, Entropy: 0.0002, Distance: 3.4572
+Step 43: Loss: 0.0682, Entropy: 0.0002, Distance: 3.3988
+Step 44: Loss: 0.0672, Entropy: 0.0003, Distance: 3.3464
+Step 45: Loss: 0.0663, Entropy: 0.0003, Distance: 3.2988
+Step 46: Loss: 0.0654, Entropy: 0.0003, Distance: 3.2552
+Step 47: Loss: 0.0647, Entropy: 0.0004, Distance: 3.2145
+Step 48: Loss: 0.0639, Entropy: 0.0004, Distance: 3.1760
+Step 49: Loss: 0.0632, Entropy: 0.0005, Distance: 3.1389
+Step 00: Loss: 1.3716, Entropy: 1.3716, Distance: 0.0000
+Step 01: Loss: 0.4400, Entropy: 0.4080, Distance: 1.6000
+Step 02: Loss: 0.1064, Entropy: 0.0489, Distance: 2.8743
+Step 03: Loss: 0.0848, Entropy: 0.0069, Distance: 3.8955
+Step 04: Loss: 0.0947, Entropy: 0.0014, Distance: 4.6663
+Step 05: Loss: 0.1053, Entropy: 0.0004, Distance: 5.2457
+Step 06: Loss: 0.1137, Entropy: 0.0001, Distance: 5.6782
+Step 07: Loss: 0.1199, Entropy: 0.0001, Distance: 5.9946
+Step 08: Loss: 0.1244, Entropy: 0.0000, Distance: 6.2173
+Step 09: Loss: 0.1273, Entropy: 0.0000, Distance: 6.3629
+Step 10: Loss: 0.1289, Entropy: 0.0000, Distance: 6.4444
+Step 11: Loss: 0.1295, Entropy: 0.0000, Distance: 6.4723
+Step 12: Loss: 0.1291, Entropy: 0.0000, Distance: 6.4551
+Step 13: Loss: 0.1280, Entropy: 0.0000, Distance: 6.4001
+Step 14: Loss: 0.1263, Entropy: 0.0000, Distance: 6.3135
+Step 15: Loss: 0.1240, Entropy: 0.0000, Distance: 6.2010
+Step 16: Loss: 0.1214, Entropy: 0.0000, Distance: 6.0674
+Step 17: Loss: 0.1183, Entropy: 0.0000, Distance: 5.9171
+Step 18: Loss: 0.1151, Entropy: 0.0000, Distance: 5.7540
+Step 19: Loss: 0.1116, Entropy: 0.0000, Distance: 5.5815
+Step 20: Loss: 0.1081, Entropy: 0.0000, Distance: 5.4029
+Step 21: Loss: 0.1044, Entropy: 0.0000, Distance: 5.2210
+Step 22: Loss: 0.1008, Entropy: 0.0000, Distance: 5.0383
+Step 23: Loss: 0.0972, Entropy: 0.0000, Distance: 4.8575
+Step 24: Loss: 0.0936, Entropy: 0.0000, Distance: 4.6808
+Step 25: Loss: 0.0902, Entropy: 0.0000, Distance: 4.5104
+Step 26: Loss: 0.0870, Entropy: 0.0000, Distance: 4.3484
+Step 27: Loss: 0.0839, Entropy: 0.0000, Distance: 4.1963
+Step 28: Loss: 0.0811, Entropy: 0.0000, Distance: 4.0555
+Step 29: Loss: 0.0785, Entropy: 0.0000, Distance: 3.9267
+Step 30: Loss: 0.0762, Entropy: 0.0000, Distance: 3.8102
+Step 31: Loss: 0.0741, Entropy: 0.0000, Distance: 3.7059
+Step 32: Loss: 0.0723, Entropy: 0.0000, Distance: 3.6132
+Step 33: Loss: 0.0706, Entropy: 0.0000, Distance: 3.5310
+Step 34: Loss: 0.0692, Entropy: 0.0000, Distance: 3.4580
+Step 35: Loss: 0.0679, Entropy: 0.0000, Distance: 3.3927
+Step 36: Loss: 0.0667, Entropy: 0.0000, Distance: 3.3334
+Step 37: Loss: 0.0656, Entropy: 0.0000, Distance: 3.2790
+Step 38: Loss: 0.0646, Entropy: 0.0000, Distance: 3.2280
+Step 39: Loss: 0.0636, Entropy: 0.0000, Distance: 3.1796
+Step 40: Loss: 0.0627, Entropy: 0.0000, Distance: 3.1327
+Step 41: Loss: 0.0618, Entropy: 0.0000, Distance: 3.0867
+Step 42: Loss: 0.0609, Entropy: 0.0000, Distance: 3.0410
+Step 43: Loss: 0.0599, Entropy: 0.0000, Distance: 2.9953
+Step 44: Loss: 0.0590, Entropy: 0.0000, Distance: 2.9492
+Step 45: Loss: 0.0581, Entropy: 0.0000, Distance: 2.9027
+Step 46: Loss: 0.0572, Entropy: 0.0000, Distance: 2.8556
+Step 47: Loss: 0.0562, Entropy: 0.0001, Distance: 2.8080
+Step 48: Loss: 0.0553, Entropy: 0.0001, Distance: 2.7602
+Step 49: Loss: 0.0543, Entropy: 0.0001, Distance: 2.7122
+Step 00: Loss: 1.3249, Entropy: 1.3249, Distance: 0.0000
+Step 01: Loss: 0.8703, Entropy: 0.8383, Distance: 1.6000
+Step 02: Loss: 0.5557, Entropy: 0.5013, Distance: 2.7212
+Step 03: Loss: 0.1736, Entropy: 0.1024, Distance: 3.5619
+Step 04: Loss: 0.1013, Entropy: 0.0140, Distance: 4.3653
+Step 05: Loss: 0.1032, Entropy: 0.0024, Distance: 5.0385
+Step 06: Loss: 0.1122, Entropy: 0.0006, Distance: 5.5804
+Step 07: Loss: 0.1204, Entropy: 0.0002, Distance: 6.0087
+Step 08: Loss: 0.1269, Entropy: 0.0001, Distance: 6.3408
+Step 09: Loss: 0.1319, Entropy: 0.0000, Distance: 6.5913
+Step 10: Loss: 0.1355, Entropy: 0.0000, Distance: 6.7720
+Step 11: Loss: 0.1379, Entropy: 0.0000, Distance: 6.8927
+Step 12: Loss: 0.1392, Entropy: 0.0000, Distance: 6.9612
+Step 13: Loss: 0.1397, Entropy: 0.0000, Distance: 6.9844
+Step 14: Loss: 0.1394, Entropy: 0.0000, Distance: 6.9678
+Step 15: Loss: 0.1383, Entropy: 0.0000, Distance: 6.9166
+Step 16: Loss: 0.1367, Entropy: 0.0000, Distance: 6.8351
+Step 17: Loss: 0.1345, Entropy: 0.0000, Distance: 6.7272
+Step 18: Loss: 0.1319, Entropy: 0.0000, Distance: 6.5967
+Step 19: Loss: 0.1289, Entropy: 0.0000, Distance: 6.4472
+Step 20: Loss: 0.1256, Entropy: 0.0000, Distance: 6.2820
+Step 21: Loss: 0.1221, Entropy: 0.0000, Distance: 6.1045
+Step 22: Loss: 0.1184, Entropy: 0.0000, Distance: 5.9178
+Step 23: Loss: 0.1145, Entropy: 0.0000, Distance: 5.7251
+Step 24: Loss: 0.1106, Entropy: 0.0000, Distance: 5.5293
+Step 25: Loss: 0.1067, Entropy: 0.0000, Distance: 5.3331
+Step 26: Loss: 0.1028, Entropy: 0.0000, Distance: 5.1392
+Step 27: Loss: 0.0990, Entropy: 0.0000, Distance: 4.9496
+Step 28: Loss: 0.0953, Entropy: 0.0000, Distance: 4.7664
+Step 29: Loss: 0.0918, Entropy: 0.0000, Distance: 4.5912
+Step 30: Loss: 0.0885, Entropy: 0.0000, Distance: 4.4253
+Step 31: Loss: 0.0854, Entropy: 0.0000, Distance: 4.2696
+Step 32: Loss: 0.0825, Entropy: 0.0000, Distance: 4.1247
+Step 33: Loss: 0.0798, Entropy: 0.0000, Distance: 3.9911
+Step 34: Loss: 0.0774, Entropy: 0.0000, Distance: 3.8687
+Step 35: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7574
+Step 36: Loss: 0.0732, Entropy: 0.0000, Distance: 3.6570
+Step 37: Loss: 0.0714, Entropy: 0.0000, Distance: 3.5667
+Step 38: Loss: 0.0698, Entropy: 0.0000, Distance: 3.4859
+Step 39: Loss: 0.0683, Entropy: 0.0000, Distance: 3.4136
+Step 40: Loss: 0.0670, Entropy: 0.0000, Distance: 3.3488
+Step 41: Loss: 0.0659, Entropy: 0.0001, Distance: 3.2904
+Step 42: Loss: 0.0648, Entropy: 0.0001, Distance: 3.2374
+Step 43: Loss: 0.0638, Entropy: 0.0001, Distance: 3.1890
+Step 44: Loss: 0.0630, Entropy: 0.0001, Distance: 3.1442
+Step 45: Loss: 0.0621, Entropy: 0.0001, Distance: 3.1025
+Step 46: Loss: 0.0614, Entropy: 0.0001, Distance: 3.0631
+Step 47: Loss: 0.0606, Entropy: 0.0001, Distance: 3.0255
+Step 48: Loss: 0.0599, Entropy: 0.0001, Distance: 2.9891
+Step 49: Loss: 0.0592, Entropy: 0.0001, Distance: 2.9534
+Step 00: Loss: 1.3158, Entropy: 1.3158, Distance: 0.0000
+Step 01: Loss: 0.7937, Entropy: 0.7617, Distance: 1.6000
+Step 02: Loss: 0.2393, Entropy: 0.1870, Distance: 2.6174
+Step 03: Loss: 0.0983, Entropy: 0.0254, Distance: 3.6480
+Step 04: Loss: 0.0943, Entropy: 0.0042, Distance: 4.5043
+Step 05: Loss: 0.1046, Entropy: 0.0009, Distance: 5.1848
+Step 06: Loss: 0.1147, Entropy: 0.0003, Distance: 5.7190
+Step 07: Loss: 0.1228, Entropy: 0.0001, Distance: 6.1333
+Step 08: Loss: 0.1290, Entropy: 0.0000, Distance: 6.4482
+Step 09: Loss: 0.1336, Entropy: 0.0000, Distance: 6.6798
+Step 10: Loss: 0.1368, Entropy: 0.0000, Distance: 6.8406
+Step 11: Loss: 0.1388, Entropy: 0.0000, Distance: 6.9409
+Step 12: Loss: 0.1398, Entropy: 0.0000, Distance: 6.9891
+Step 13: Loss: 0.1398, Entropy: 0.0000, Distance: 6.9922
+Step 14: Loss: 0.1391, Entropy: 0.0000, Distance: 6.9566
+Step 15: Loss: 0.1378, Entropy: 0.0000, Distance: 6.8877
+Step 16: Loss: 0.1358, Entropy: 0.0000, Distance: 6.7903
+Step 17: Loss: 0.1334, Entropy: 0.0000, Distance: 6.6691
+Step 18: Loss: 0.1306, Entropy: 0.0000, Distance: 6.5282
+Step 19: Loss: 0.1274, Entropy: 0.0000, Distance: 6.3714
+Step 20: Loss: 0.1240, Entropy: 0.0000, Distance: 6.2022
+Step 21: Loss: 0.1205, Entropy: 0.0000, Distance: 6.0240
+Step 22: Loss: 0.1168, Entropy: 0.0000, Distance: 5.8397
+Step 23: Loss: 0.1130, Entropy: 0.0000, Distance: 5.6522
+Step 24: Loss: 0.1093, Entropy: 0.0000, Distance: 5.4640
+Step 25: Loss: 0.1056, Entropy: 0.0000, Distance: 5.2776
+Step 26: Loss: 0.1019, Entropy: 0.0000, Distance: 5.0949
+Step 27: Loss: 0.0984, Entropy: 0.0000, Distance: 4.9179
+Step 28: Loss: 0.0950, Entropy: 0.0000, Distance: 4.7481
+Step 29: Loss: 0.0918, Entropy: 0.0000, Distance: 4.5869
+Step 30: Loss: 0.0887, Entropy: 0.0000, Distance: 4.4353
+Step 31: Loss: 0.0859, Entropy: 0.0000, Distance: 4.2942
+Step 32: Loss: 0.0833, Entropy: 0.0000, Distance: 4.1638
+Step 33: Loss: 0.0809, Entropy: 0.0000, Distance: 4.0444
+Step 34: Loss: 0.0787, Entropy: 0.0000, Distance: 3.9359
+Step 35: Loss: 0.0768, Entropy: 0.0000, Distance: 3.8379
+Step 36: Loss: 0.0750, Entropy: 0.0000, Distance: 3.7499
+Step 37: Loss: 0.0735, Entropy: 0.0000, Distance: 3.6713
+Step 38: Loss: 0.0721, Entropy: 0.0001, Distance: 3.6011
+Step 39: Loss: 0.0708, Entropy: 0.0001, Distance: 3.5386
+Step 40: Loss: 0.0697, Entropy: 0.0001, Distance: 3.4828
+Step 41: Loss: 0.0687, Entropy: 0.0001, Distance: 3.4326
+Step 42: Loss: 0.0678, Entropy: 0.0001, Distance: 3.3869
+Step 43: Loss: 0.0670, Entropy: 0.0001, Distance: 3.3448
+Step 44: Loss: 0.0662, Entropy: 0.0001, Distance: 3.3051
+Step 45: Loss: 0.0655, Entropy: 0.0001, Distance: 3.2669
+Step 46: Loss: 0.0647, Entropy: 0.0001, Distance: 3.2293
+Step 47: Loss: 0.0640, Entropy: 0.0001, Distance: 3.1919
+Step 48: Loss: 0.0632, Entropy: 0.0002, Distance: 3.1539
+Step 49: Loss: 0.0625, Entropy: 0.0002, Distance: 3.1153
+Step 00: Loss: 1.2881, Entropy: 1.2881, Distance: 0.0000
+Step 01: Loss: 0.4025, Entropy: 0.3705, Distance: 1.6000
+Step 02: Loss: 0.1084, Entropy: 0.0497, Distance: 2.9383
+Step 03: Loss: 0.0887, Entropy: 0.0089, Distance: 3.9922
+Step 04: Loss: 0.0981, Entropy: 0.0023, Distance: 4.7911
+Step 05: Loss: 0.1087, Entropy: 0.0008, Distance: 5.3987
+Step 06: Loss: 0.1175, Entropy: 0.0003, Distance: 5.8601
+Step 07: Loss: 0.1243, Entropy: 0.0002, Distance: 6.2067
+Step 08: Loss: 0.1293, Entropy: 0.0001, Distance: 6.4609
+Step 09: Loss: 0.1328, Entropy: 0.0001, Distance: 6.6397
+Step 10: Loss: 0.1352, Entropy: 0.0000, Distance: 6.7561
+Step 11: Loss: 0.1364, Entropy: 0.0000, Distance: 6.8205
+Step 12: Loss: 0.1368, Entropy: 0.0000, Distance: 6.8414
+Step 13: Loss: 0.1365, Entropy: 0.0000, Distance: 6.8256
+Step 14: Loss: 0.1356, Entropy: 0.0000, Distance: 6.7789
+Step 15: Loss: 0.1341, Entropy: 0.0000, Distance: 6.7064
+Step 16: Loss: 0.1323, Entropy: 0.0000, Distance: 6.6122
+Step 17: Loss: 0.1300, Entropy: 0.0000, Distance: 6.5002
+Step 18: Loss: 0.1275, Entropy: 0.0000, Distance: 6.3734
+Step 19: Loss: 0.1247, Entropy: 0.0000, Distance: 6.2347
+Step 20: Loss: 0.1217, Entropy: 0.0000, Distance: 6.0865
+Step 21: Loss: 0.1186, Entropy: 0.0000, Distance: 5.9310
+Step 22: Loss: 0.1154, Entropy: 0.0000, Distance: 5.7702
+Step 23: Loss: 0.1121, Entropy: 0.0000, Distance: 5.6058
+Step 24: Loss: 0.1088, Entropy: 0.0000, Distance: 5.4395
+Step 25: Loss: 0.1055, Entropy: 0.0000, Distance: 5.2730
+Step 26: Loss: 0.1022, Entropy: 0.0000, Distance: 5.1078
+Step 27: Loss: 0.0989, Entropy: 0.0000, Distance: 4.9456
+Step 28: Loss: 0.0958, Entropy: 0.0000, Distance: 4.7875
+Step 29: Loss: 0.0927, Entropy: 0.0000, Distance: 4.6347
+Step 30: Loss: 0.0898, Entropy: 0.0000, Distance: 4.4880
+Step 31: Loss: 0.0870, Entropy: 0.0000, Distance: 4.3481
+Step 32: Loss: 0.0843, Entropy: 0.0000, Distance: 4.2152
+Step 33: Loss: 0.0818, Entropy: 0.0000, Distance: 4.0895
+Step 34: Loss: 0.0795, Entropy: 0.0001, Distance: 3.9710
+Step 35: Loss: 0.0773, Entropy: 0.0001, Distance: 3.8596
+Step 36: Loss: 0.0752, Entropy: 0.0001, Distance: 3.7551
+Step 37: Loss: 0.0732, Entropy: 0.0001, Distance: 3.6574
+Step 38: Loss: 0.0714, Entropy: 0.0001, Distance: 3.5660
+Step 39: Loss: 0.0697, Entropy: 0.0001, Distance: 3.4806
+Step 40: Loss: 0.0681, Entropy: 0.0001, Distance: 3.4007
+Step 41: Loss: 0.0667, Entropy: 0.0001, Distance: 3.3256
+Step 42: Loss: 0.0653, Entropy: 0.0002, Distance: 3.2548
+Step 43: Loss: 0.0639, Entropy: 0.0002, Distance: 3.1878
+Step 44: Loss: 0.0627, Entropy: 0.0002, Distance: 3.1240
+Step 45: Loss: 0.0615, Entropy: 0.0002, Distance: 3.0633
+Step 46: Loss: 0.0604, Entropy: 0.0003, Distance: 3.0054
+Step 47: Loss: 0.0593, Entropy: 0.0003, Distance: 2.9505
+Step 48: Loss: 0.0583, Entropy: 0.0003, Distance: 2.8985
+Step 49: Loss: 0.0573, Entropy: 0.0003, Distance: 2.8494
+Step 00: Loss: 1.2830, Entropy: 1.2830, Distance: 0.0000
+Step 01: Loss: 0.7291, Entropy: 0.6971, Distance: 1.6000
+Step 02: Loss: 0.1948, Entropy: 0.1440, Distance: 2.5419
+Step 03: Loss: 0.0847, Entropy: 0.0144, Distance: 3.5125
+Step 04: Loss: 0.0882, Entropy: 0.0018, Distance: 4.3205
+Step 05: Loss: 0.0995, Entropy: 0.0003, Distance: 4.9588
+Step 06: Loss: 0.1092, Entropy: 0.0001, Distance: 5.4559
+Step 07: Loss: 0.1168, Entropy: 0.0000, Distance: 5.8375
+Step 08: Loss: 0.1225, Entropy: 0.0000, Distance: 6.1236
+Step 09: Loss: 0.1266, Entropy: 0.0000, Distance: 6.3298
+Step 10: Loss: 0.1294, Entropy: 0.0000, Distance: 6.4687
+Step 11: Loss: 0.1310, Entropy: 0.0000, Distance: 6.5504
+Step 12: Loss: 0.1317, Entropy: 0.0000, Distance: 6.5835
+Step 13: Loss: 0.1315, Entropy: 0.0000, Distance: 6.5752
+Step 14: Loss: 0.1306, Entropy: 0.0000, Distance: 6.5317
+Step 15: Loss: 0.1292, Entropy: 0.0000, Distance: 6.4585
+Step 16: Loss: 0.1272, Entropy: 0.0000, Distance: 6.3605
+Step 17: Loss: 0.1248, Entropy: 0.0000, Distance: 6.2419
+Step 18: Loss: 0.1221, Entropy: 0.0000, Distance: 6.1067
+Step 19: Loss: 0.1192, Entropy: 0.0000, Distance: 5.9582
+Step 20: Loss: 0.1160, Entropy: 0.0000, Distance: 5.7995
+Step 21: Loss: 0.1127, Entropy: 0.0000, Distance: 5.6335
+Step 22: Loss: 0.1093, Entropy: 0.0000, Distance: 5.4627
+Step 23: Loss: 0.1058, Entropy: 0.0000, Distance: 5.2896
+Step 24: Loss: 0.1023, Entropy: 0.0000, Distance: 5.1163
+Step 25: Loss: 0.0989, Entropy: 0.0000, Distance: 4.9451
+Step 26: Loss: 0.0956, Entropy: 0.0000, Distance: 4.7780
+Step 27: Loss: 0.0923, Entropy: 0.0000, Distance: 4.6170
+Step 28: Loss: 0.0893, Entropy: 0.0000, Distance: 4.4637
+Step 29: Loss: 0.0864, Entropy: 0.0000, Distance: 4.3197
+Step 30: Loss: 0.0837, Entropy: 0.0000, Distance: 4.1859
+Step 31: Loss: 0.0813, Entropy: 0.0000, Distance: 4.0630
+Step 32: Loss: 0.0790, Entropy: 0.0000, Distance: 3.9512
+Step 33: Loss: 0.0770, Entropy: 0.0000, Distance: 3.8504
+Step 34: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7602
+Step 35: Loss: 0.0736, Entropy: 0.0000, Distance: 3.6796
+Step 36: Loss: 0.0722, Entropy: 0.0000, Distance: 3.6079
+Step 37: Loss: 0.0709, Entropy: 0.0000, Distance: 3.5438
+Step 38: Loss: 0.0697, Entropy: 0.0000, Distance: 3.4861
+Step 39: Loss: 0.0687, Entropy: 0.0000, Distance: 3.4337
+Step 40: Loss: 0.0677, Entropy: 0.0000, Distance: 3.3852
+Step 41: Loss: 0.0668, Entropy: 0.0000, Distance: 3.3397
+Step 42: Loss: 0.0659, Entropy: 0.0000, Distance: 3.2962
+Step 43: Loss: 0.0651, Entropy: 0.0000, Distance: 3.2539
+Step 44: Loss: 0.0643, Entropy: 0.0000, Distance: 3.2125
+Step 45: Loss: 0.0634, Entropy: 0.0000, Distance: 3.1715
+Step 46: Loss: 0.0626, Entropy: 0.0000, Distance: 3.1306
+Step 47: Loss: 0.0618, Entropy: 0.0000, Distance: 3.0896
+Step 48: Loss: 0.0610, Entropy: 0.0000, Distance: 3.0483
+Step 49: Loss: 0.0602, Entropy: 0.0000, Distance: 3.0064
+Step 00: Loss: 1.2375, Entropy: 1.2375, Distance: 0.0000
+Step 01: Loss: 0.5575, Entropy: 0.5255, Distance: 1.6000
+Step 02: Loss: 0.1608, Entropy: 0.1043, Distance: 2.8280
+Step 03: Loss: 0.0959, Entropy: 0.0179, Distance: 3.9009
+Step 04: Loss: 0.0991, Entropy: 0.0040, Distance: 4.7538
+Step 05: Loss: 0.1096, Entropy: 0.0012, Distance: 5.4201
+Step 06: Loss: 0.1192, Entropy: 0.0005, Distance: 5.9372
+Step 07: Loss: 0.1269, Entropy: 0.0002, Distance: 6.3340
+Step 08: Loss: 0.1328, Entropy: 0.0001, Distance: 6.6321
+Step 09: Loss: 0.1370, Entropy: 0.0001, Distance: 6.8478
+Step 10: Loss: 0.1399, Entropy: 0.0001, Distance: 6.9943
+Step 11: Loss: 0.1417, Entropy: 0.0000, Distance: 7.0820
+Step 12: Loss: 0.1424, Entropy: 0.0000, Distance: 7.1195
+Step 13: Loss: 0.1423, Entropy: 0.0000, Distance: 7.1142
+Step 14: Loss: 0.1415, Entropy: 0.0000, Distance: 7.0720
+Step 15: Loss: 0.1400, Entropy: 0.0000, Distance: 6.9984
+Step 16: Loss: 0.1380, Entropy: 0.0000, Distance: 6.8979
+Step 17: Loss: 0.1355, Entropy: 0.0000, Distance: 6.7743
+Step 18: Loss: 0.1326, Entropy: 0.0000, Distance: 6.6314
+Step 19: Loss: 0.1295, Entropy: 0.0000, Distance: 6.4723
+Step 20: Loss: 0.1260, Entropy: 0.0000, Distance: 6.2999
+Step 21: Loss: 0.1224, Entropy: 0.0000, Distance: 6.1169
+Step 22: Loss: 0.1185, Entropy: 0.0000, Distance: 5.9260
+Step 23: Loss: 0.1146, Entropy: 0.0000, Distance: 5.7294
+Step 24: Loss: 0.1106, Entropy: 0.0000, Distance: 5.5293
+Step 25: Loss: 0.1066, Entropy: 0.0000, Distance: 5.3278
+Step 26: Loss: 0.1026, Entropy: 0.0000, Distance: 5.1271
+Step 27: Loss: 0.0986, Entropy: 0.0000, Distance: 4.9290
+Step 28: Loss: 0.0948, Entropy: 0.0001, Distance: 4.7358
+Step 29: Loss: 0.0910, Entropy: 0.0001, Distance: 4.5492
+Step 30: Loss: 0.0875, Entropy: 0.0001, Distance: 4.3709
+Step 31: Loss: 0.0841, Entropy: 0.0001, Distance: 4.2024
+Step 32: Loss: 0.0810, Entropy: 0.0001, Distance: 4.0448
+Step 33: Loss: 0.0781, Entropy: 0.0001, Distance: 3.8990
+Step 34: Loss: 0.0755, Entropy: 0.0001, Distance: 3.7653
+Step 35: Loss: 0.0731, Entropy: 0.0002, Distance: 3.6442
+Step 36: Loss: 0.0709, Entropy: 0.0002, Distance: 3.5355
+Step 37: Loss: 0.0690, Entropy: 0.0002, Distance: 3.4389
+Step 38: Loss: 0.0673, Entropy: 0.0003, Distance: 3.3538
+Step 39: Loss: 0.0659, Entropy: 0.0003, Distance: 3.2795
+Step 40: Loss: 0.0646, Entropy: 0.0003, Distance: 3.2147
+Step 41: Loss: 0.0635, Entropy: 0.0004, Distance: 3.1584
+Step 42: Loss: 0.0626, Entropy: 0.0004, Distance: 3.1093
+Step 43: Loss: 0.0618, Entropy: 0.0005, Distance: 3.0659
+Step 44: Loss: 0.0610, Entropy: 0.0005, Distance: 3.0269
+Step 45: Loss: 0.0604, Entropy: 0.0005, Distance: 2.9911
+Step 46: Loss: 0.0597, Entropy: 0.0006, Distance: 2.9576
+Step 47: Loss: 0.0591, Entropy: 0.0006, Distance: 2.9253
+Step 48: Loss: 0.0585, Entropy: 0.0007, Distance: 2.8937
+Step 49: Loss: 0.0580, Entropy: 0.0007, Distance: 2.8622
+Step 00: Loss: 1.1954, Entropy: 1.1954, Distance: 0.0000
+Step 01: Loss: 0.6552, Entropy: 0.6232, Distance: 1.6000
+Step 02: Loss: 0.2103, Entropy: 0.1580, Distance: 2.6146
+Step 03: Loss: 0.0969, Entropy: 0.0258, Distance: 3.5582
+Step 04: Loss: 0.0916, Entropy: 0.0049, Distance: 4.3333
+Step 05: Loss: 0.1000, Entropy: 0.0012, Distance: 4.9416
+Step 06: Loss: 0.1086, Entropy: 0.0004, Distance: 5.4114
+Step 07: Loss: 0.1155, Entropy: 0.0001, Distance: 5.7680
+Step 08: Loss: 0.1207, Entropy: 0.0001, Distance: 6.0315
+Step 09: Loss: 0.1244, Entropy: 0.0000, Distance: 6.2175
+Step 10: Loss: 0.1268, Entropy: 0.0000, Distance: 6.3386
+Step 11: Loss: 0.1281, Entropy: 0.0000, Distance: 6.4047
+Step 12: Loss: 0.1285, Entropy: 0.0000, Distance: 6.4243
+Step 13: Loss: 0.1281, Entropy: 0.0000, Distance: 6.4044
+Step 14: Loss: 0.1270, Entropy: 0.0000, Distance: 6.3510
+Step 15: Loss: 0.1254, Entropy: 0.0000, Distance: 6.2695
+Step 16: Loss: 0.1233, Entropy: 0.0000, Distance: 6.1644
+Step 17: Loss: 0.1208, Entropy: 0.0000, Distance: 6.0398
+Step 18: Loss: 0.1180, Entropy: 0.0000, Distance: 5.8995
+Step 19: Loss: 0.1149, Entropy: 0.0000, Distance: 5.7467
+Step 20: Loss: 0.1117, Entropy: 0.0000, Distance: 5.5847
+Step 21: Loss: 0.1083, Entropy: 0.0000, Distance: 5.4163
+Step 22: Loss: 0.1049, Entropy: 0.0000, Distance: 5.2444
+Step 23: Loss: 0.1014, Entropy: 0.0000, Distance: 5.0714
+Step 24: Loss: 0.0980, Entropy: 0.0000, Distance: 4.9000
+Step 25: Loss: 0.0946, Entropy: 0.0000, Distance: 4.7322
+Step 26: Loss: 0.0914, Entropy: 0.0000, Distance: 4.5702
+Step 27: Loss: 0.0883, Entropy: 0.0000, Distance: 4.4158
+Step 28: Loss: 0.0854, Entropy: 0.0000, Distance: 4.2703
+Step 29: Loss: 0.0827, Entropy: 0.0000, Distance: 4.1349
+Step 30: Loss: 0.0802, Entropy: 0.0000, Distance: 4.0105
+Step 31: Loss: 0.0780, Entropy: 0.0000, Distance: 3.8974
+Step 32: Loss: 0.0759, Entropy: 0.0000, Distance: 3.7957
+Step 33: Loss: 0.0741, Entropy: 0.0000, Distance: 3.7051
+Step 34: Loss: 0.0725, Entropy: 0.0000, Distance: 3.6251
+Step 35: Loss: 0.0711, Entropy: 0.0000, Distance: 3.5548
+Step 36: Loss: 0.0699, Entropy: 0.0000, Distance: 3.4929
+Step 37: Loss: 0.0688, Entropy: 0.0000, Distance: 3.4382
+Step 38: Loss: 0.0678, Entropy: 0.0000, Distance: 3.3893
+Step 39: Loss: 0.0669, Entropy: 0.0000, Distance: 3.3446
+Step 40: Loss: 0.0661, Entropy: 0.0000, Distance: 3.3029
+Step 41: Loss: 0.0653, Entropy: 0.0000, Distance: 3.2630
+Step 42: Loss: 0.0645, Entropy: 0.0000, Distance: 3.2237
+Step 43: Loss: 0.0637, Entropy: 0.0001, Distance: 3.1843
+Step 44: Loss: 0.0629, Entropy: 0.0001, Distance: 3.1441
+Step 45: Loss: 0.0621, Entropy: 0.0001, Distance: 3.1027
+Step 46: Loss: 0.0613, Entropy: 0.0001, Distance: 3.0600
+Step 47: Loss: 0.0604, Entropy: 0.0001, Distance: 3.0158
+Step 48: Loss: 0.0595, Entropy: 0.0001, Distance: 2.9703
+Step 49: Loss: 0.0586, Entropy: 0.0001, Distance: 2.9238
+Step 00: Loss: 1.1493, Entropy: 1.1493, Distance: 0.0000
+Step 01: Loss: 0.2275, Entropy: 0.1955, Distance: 1.6000
+Step 02: Loss: 0.0785, Entropy: 0.0204, Distance: 2.9020
+Step 03: Loss: 0.0797, Entropy: 0.0031, Distance: 3.8299
+Step 04: Loss: 0.0906, Entropy: 0.0007, Distance: 4.4975
+Step 05: Loss: 0.0998, Entropy: 0.0002, Distance: 4.9821
+Step 06: Loss: 0.1067, Entropy: 0.0001, Distance: 5.3311
+Step 07: Loss: 0.1116, Entropy: 0.0000, Distance: 5.5763
+Step 08: Loss: 0.1148, Entropy: 0.0000, Distance: 5.7398
+Step 09: Loss: 0.1168, Entropy: 0.0000, Distance: 5.8380
+Step 10: Loss: 0.1177, Entropy: 0.0000, Distance: 5.8836
+Step 11: Loss: 0.1177, Entropy: 0.0000, Distance: 5.8867
+Step 12: Loss: 0.1171, Entropy: 0.0000, Distance: 5.8552
+Step 13: Loss: 0.1159, Entropy: 0.0000, Distance: 5.7957
+Step 14: Loss: 0.1143, Entropy: 0.0000, Distance: 5.7137
+Step 15: Loss: 0.1123, Entropy: 0.0000, Distance: 5.6138
+Step 16: Loss: 0.1100, Entropy: 0.0000, Distance: 5.4996
+Step 17: Loss: 0.1075, Entropy: 0.0000, Distance: 5.3746
+Step 18: Loss: 0.1048, Entropy: 0.0000, Distance: 5.2413
+Step 19: Loss: 0.1020, Entropy: 0.0000, Distance: 5.1023
+Step 20: Loss: 0.0992, Entropy: 0.0000, Distance: 4.9596
+Step 21: Loss: 0.0963, Entropy: 0.0000, Distance: 4.8153
+Step 22: Loss: 0.0934, Entropy: 0.0000, Distance: 4.6711
+Step 23: Loss: 0.0906, Entropy: 0.0000, Distance: 4.5286
+Step 24: Loss: 0.0878, Entropy: 0.0000, Distance: 4.3888
+Step 25: Loss: 0.0851, Entropy: 0.0000, Distance: 4.2526
+Step 26: Loss: 0.0824, Entropy: 0.0000, Distance: 4.1207
+Step 27: Loss: 0.0799, Entropy: 0.0000, Distance: 3.9938
+Step 28: Loss: 0.0775, Entropy: 0.0000, Distance: 3.8726
+Step 29: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7581
+Step 30: Loss: 0.0730, Entropy: 0.0000, Distance: 3.6509
+Step 31: Loss: 0.0710, Entropy: 0.0000, Distance: 3.5515
+Step 32: Loss: 0.0692, Entropy: 0.0000, Distance: 3.4596
+Step 33: Loss: 0.0675, Entropy: 0.0000, Distance: 3.3748
+Step 34: Loss: 0.0659, Entropy: 0.0000, Distance: 3.2965
+Step 35: Loss: 0.0645, Entropy: 0.0000, Distance: 3.2243
+Step 36: Loss: 0.0632, Entropy: 0.0000, Distance: 3.1576
+Step 37: Loss: 0.0619, Entropy: 0.0000, Distance: 3.0961
+Step 38: Loss: 0.0608, Entropy: 0.0000, Distance: 3.0391
+Step 39: Loss: 0.0597, Entropy: 0.0000, Distance: 2.9859
+Step 40: Loss: 0.0587, Entropy: 0.0000, Distance: 2.9357
+Step 41: Loss: 0.0578, Entropy: 0.0000, Distance: 2.8879
+Step 42: Loss: 0.0569, Entropy: 0.0000, Distance: 2.8420
+Step 43: Loss: 0.0560, Entropy: 0.0000, Distance: 2.7975
+Step 44: Loss: 0.0551, Entropy: 0.0000, Distance: 2.7543
+Step 45: Loss: 0.0543, Entropy: 0.0000, Distance: 2.7125
+Step 46: Loss: 0.0535, Entropy: 0.0000, Distance: 2.6719
+Step 47: Loss: 0.0527, Entropy: 0.0000, Distance: 2.6325
+Step 48: Loss: 0.0519, Entropy: 0.0000, Distance: 2.5939
+Step 49: Loss: 0.0512, Entropy: 0.0001, Distance: 2.5559
+Step 00: Loss: 1.1373, Entropy: 1.1373, Distance: 0.0000
+Step 01: Loss: 0.4425, Entropy: 0.4105, Distance: 1.6000
+Step 02: Loss: 0.1060, Entropy: 0.0533, Distance: 2.6324
+Step 03: Loss: 0.0777, Entropy: 0.0071, Distance: 3.5279
+Step 04: Loss: 0.0859, Entropy: 0.0014, Distance: 4.2286
+Step 05: Loss: 0.0957, Entropy: 0.0004, Distance: 4.7684
+Step 06: Loss: 0.1037, Entropy: 0.0001, Distance: 5.1804
+Step 07: Loss: 0.1098, Entropy: 0.0001, Distance: 5.4893
+Step 08: Loss: 0.1143, Entropy: 0.0000, Distance: 5.7133
+Step 09: Loss: 0.1174, Entropy: 0.0000, Distance: 5.8668
+Step 10: Loss: 0.1192, Entropy: 0.0000, Distance: 5.9611
+Step 11: Loss: 0.1201, Entropy: 0.0000, Distance: 6.0057
+Step 12: Loss: 0.1202, Entropy: 0.0000, Distance: 6.0084
+Step 13: Loss: 0.1195, Entropy: 0.0000, Distance: 5.9758
+Step 14: Loss: 0.1183, Entropy: 0.0000, Distance: 5.9138
+Step 15: Loss: 0.1165, Entropy: 0.0000, Distance: 5.8271
+Step 16: Loss: 0.1144, Entropy: 0.0000, Distance: 5.7200
+Step 17: Loss: 0.1119, Entropy: 0.0000, Distance: 5.5965
+Step 18: Loss: 0.1092, Entropy: 0.0000, Distance: 5.4599
+Step 19: Loss: 0.1063, Entropy: 0.0000, Distance: 5.3135
+Step 20: Loss: 0.1032, Entropy: 0.0000, Distance: 5.1602
+Step 21: Loss: 0.1001, Entropy: 0.0000, Distance: 5.0030
+Step 22: Loss: 0.0969, Entropy: 0.0000, Distance: 4.8445
+Step 23: Loss: 0.0937, Entropy: 0.0000, Distance: 4.6871
+Step 24: Loss: 0.0907, Entropy: 0.0000, Distance: 4.5329
+Step 25: Loss: 0.0877, Entropy: 0.0000, Distance: 4.3840
+Step 26: Loss: 0.0848, Entropy: 0.0000, Distance: 4.2417
+Step 27: Loss: 0.0822, Entropy: 0.0000, Distance: 4.1074
+Step 28: Loss: 0.0797, Entropy: 0.0000, Distance: 3.9819
+Step 29: Loss: 0.0773, Entropy: 0.0000, Distance: 3.8658
+Step 30: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7595
+Step 31: Loss: 0.0733, Entropy: 0.0000, Distance: 3.6629
+Step 32: Loss: 0.0715, Entropy: 0.0000, Distance: 3.5756
+Step 33: Loss: 0.0700, Entropy: 0.0000, Distance: 3.4971
+Step 34: Loss: 0.0686, Entropy: 0.0000, Distance: 3.4266
+Step 35: Loss: 0.0673, Entropy: 0.0001, Distance: 3.3634
+Step 36: Loss: 0.0662, Entropy: 0.0001, Distance: 3.3065
+Step 37: Loss: 0.0652, Entropy: 0.0001, Distance: 3.2552
+Step 38: Loss: 0.0642, Entropy: 0.0001, Distance: 3.2082
+Step 39: Loss: 0.0634, Entropy: 0.0001, Distance: 3.1646
+Step 40: Loss: 0.0626, Entropy: 0.0001, Distance: 3.1234
+Step 41: Loss: 0.0618, Entropy: 0.0001, Distance: 3.0836
+Step 42: Loss: 0.0610, Entropy: 0.0001, Distance: 3.0445
+Step 43: Loss: 0.0603, Entropy: 0.0001, Distance: 3.0055
+Step 44: Loss: 0.0595, Entropy: 0.0002, Distance: 2.9662
+Step 45: Loss: 0.0587, Entropy: 0.0002, Distance: 2.9262
+Step 46: Loss: 0.0579, Entropy: 0.0002, Distance: 2.8854
+Step 47: Loss: 0.0571, Entropy: 0.0002, Distance: 2.8437
+Step 48: Loss: 0.0562, Entropy: 0.0002, Distance: 2.8013
+Step 49: Loss: 0.0554, Entropy: 0.0002, Distance: 2.7582
+Step 00: Loss: 1.1316, Entropy: 1.1316, Distance: 0.0000
+Step 01: Loss: 0.3757, Entropy: 0.3437, Distance: 1.6000
+Step 02: Loss: 0.0987, Entropy: 0.0392, Distance: 2.9784
+Step 03: Loss: 0.0859, Entropy: 0.0055, Distance: 4.0214
+Step 04: Loss: 0.0964, Entropy: 0.0011, Distance: 4.7650
+Step 05: Loss: 0.1062, Entropy: 0.0003, Distance: 5.2938
+Step 06: Loss: 0.1134, Entropy: 0.0001, Distance: 5.6648
+Step 07: Loss: 0.1184, Entropy: 0.0001, Distance: 5.9162
+Step 08: Loss: 0.1215, Entropy: 0.0000, Distance: 6.0749
+Step 09: Loss: 0.1232, Entropy: 0.0000, Distance: 6.1605
+Step 10: Loss: 0.1238, Entropy: 0.0000, Distance: 6.1877
+Step 11: Loss: 0.1234, Entropy: 0.0000, Distance: 6.1679
+Step 12: Loss: 0.1222, Entropy: 0.0000, Distance: 6.1101
+Step 13: Loss: 0.1204, Entropy: 0.0000, Distance: 6.0214
+Step 14: Loss: 0.1182, Entropy: 0.0000, Distance: 5.9077
+Step 15: Loss: 0.1155, Entropy: 0.0000, Distance: 5.7737
+Step 16: Loss: 0.1125, Entropy: 0.0000, Distance: 5.6237
+Step 17: Loss: 0.1092, Entropy: 0.0000, Distance: 5.4613
+Step 18: Loss: 0.1058, Entropy: 0.0000, Distance: 5.2897
+Step 19: Loss: 0.1022, Entropy: 0.0000, Distance: 5.1119
+Step 20: Loss: 0.0986, Entropy: 0.0000, Distance: 4.9309
+Step 21: Loss: 0.0950, Entropy: 0.0000, Distance: 4.7494
+Step 22: Loss: 0.0914, Entropy: 0.0000, Distance: 4.5703
+Step 23: Loss: 0.0879, Entropy: 0.0000, Distance: 4.3961
+Step 24: Loss: 0.0846, Entropy: 0.0000, Distance: 4.2295
+Step 25: Loss: 0.0815, Entropy: 0.0000, Distance: 4.0728
+Step 26: Loss: 0.0786, Entropy: 0.0000, Distance: 3.9281
+Step 27: Loss: 0.0760, Entropy: 0.0000, Distance: 3.7966
+Step 28: Loss: 0.0736, Entropy: 0.0000, Distance: 3.6788
+Step 29: Loss: 0.0715, Entropy: 0.0000, Distance: 3.5744
+Step 30: Loss: 0.0697, Entropy: 0.0001, Distance: 3.4826
+Step 31: Loss: 0.0681, Entropy: 0.0001, Distance: 3.4018
+Step 32: Loss: 0.0667, Entropy: 0.0001, Distance: 3.3307
+Step 33: Loss: 0.0654, Entropy: 0.0001, Distance: 3.2675
+Step 34: Loss: 0.0643, Entropy: 0.0001, Distance: 3.2108
+Step 35: Loss: 0.0633, Entropy: 0.0001, Distance: 3.1592
+Step 36: Loss: 0.0624, Entropy: 0.0001, Distance: 3.1115
+Step 37: Loss: 0.0615, Entropy: 0.0002, Distance: 3.0660
+Step 38: Loss: 0.0606, Entropy: 0.0002, Distance: 3.0216
+Step 39: Loss: 0.0597, Entropy: 0.0002, Distance: 2.9770
+Step 40: Loss: 0.0588, Entropy: 0.0002, Distance: 2.9312
+Step 41: Loss: 0.0579, Entropy: 0.0002, Distance: 2.8838
+Step 42: Loss: 0.0570, Entropy: 0.0003, Distance: 2.8350
+Step 43: Loss: 0.0560, Entropy: 0.0003, Distance: 2.7853
+Step 44: Loss: 0.0550, Entropy: 0.0003, Distance: 2.7353
+Step 45: Loss: 0.0540, Entropy: 0.0003, Distance: 2.6854
+Step 46: Loss: 0.0531, Entropy: 0.0004, Distance: 2.6359
+Step 47: Loss: 0.0521, Entropy: 0.0004, Distance: 2.5866
+Step 48: Loss: 0.0512, Entropy: 0.0004, Distance: 2.5375
+Step 49: Loss: 0.0502, Entropy: 0.0004, Distance: 2.4883
+Step 00: Loss: 1.1209, Entropy: 1.1209, Distance: 0.0000
+Step 01: Loss: 0.3658, Entropy: 0.3338, Distance: 1.6000
+Step 02: Loss: 0.0992, Entropy: 0.0451, Distance: 2.7063
+Step 03: Loss: 0.0793, Entropy: 0.0067, Distance: 3.6303
+Step 04: Loss: 0.0877, Entropy: 0.0014, Distance: 4.3141
+Step 05: Loss: 0.0966, Entropy: 0.0004, Distance: 4.8086
+Step 06: Loss: 0.1033, Entropy: 0.0001, Distance: 5.1571
+Step 07: Loss: 0.1079, Entropy: 0.0001, Distance: 5.3911
+Step 08: Loss: 0.1107, Entropy: 0.0000, Distance: 5.5341
+Step 09: Loss: 0.1121, Entropy: 0.0000, Distance: 5.6041
+Step 10: Loss: 0.1123, Entropy: 0.0000, Distance: 5.6156
+Step 11: Loss: 0.1116, Entropy: 0.0000, Distance: 5.5801
+Step 12: Loss: 0.1102, Entropy: 0.0000, Distance: 5.5071
+Step 13: Loss: 0.1081, Entropy: 0.0000, Distance: 5.4046
+Step 14: Loss: 0.1056, Entropy: 0.0000, Distance: 5.2792
+Step 15: Loss: 0.1027, Entropy: 0.0000, Distance: 5.1368
+Step 16: Loss: 0.0997, Entropy: 0.0000, Distance: 4.9825
+Step 17: Loss: 0.0964, Entropy: 0.0000, Distance: 4.8208
+Step 18: Loss: 0.0931, Entropy: 0.0000, Distance: 4.6558
+Step 19: Loss: 0.0898, Entropy: 0.0000, Distance: 4.4912
+Step 20: Loss: 0.0866, Entropy: 0.0000, Distance: 4.3299
+Step 21: Loss: 0.0835, Entropy: 0.0000, Distance: 4.1744
+Step 22: Loss: 0.0805, Entropy: 0.0000, Distance: 4.0265
+Step 23: Loss: 0.0778, Entropy: 0.0000, Distance: 3.8875
+Step 24: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7580
+Step 25: Loss: 0.0728, Entropy: 0.0000, Distance: 3.6380
+Step 26: Loss: 0.0706, Entropy: 0.0000, Distance: 3.5273
+Step 27: Loss: 0.0685, Entropy: 0.0000, Distance: 3.4255
+Step 28: Loss: 0.0667, Entropy: 0.0000, Distance: 3.3326
+Step 29: Loss: 0.0650, Entropy: 0.0000, Distance: 3.2483
+Step 30: Loss: 0.0635, Entropy: 0.0000, Distance: 3.1725
+Step 31: Loss: 0.0621, Entropy: 0.0001, Distance: 3.1047
+Step 32: Loss: 0.0609, Entropy: 0.0001, Distance: 3.0441
+Step 33: Loss: 0.0599, Entropy: 0.0001, Distance: 2.9892
+Step 34: Loss: 0.0588, Entropy: 0.0001, Distance: 2.9385
+Step 35: Loss: 0.0579, Entropy: 0.0001, Distance: 2.8903
+Step 36: Loss: 0.0570, Entropy: 0.0001, Distance: 2.8428
+Step 37: Loss: 0.0560, Entropy: 0.0001, Distance: 2.7947
+Step 38: Loss: 0.0550, Entropy: 0.0001, Distance: 2.7450
+Step 39: Loss: 0.0540, Entropy: 0.0001, Distance: 2.6933
+Step 40: Loss: 0.0529, Entropy: 0.0002, Distance: 2.6396
+Step 41: Loss: 0.0519, Entropy: 0.0002, Distance: 2.5844
+Step 42: Loss: 0.0508, Entropy: 0.0002, Distance: 2.5280
+Step 43: Loss: 0.0496, Entropy: 0.0002, Distance: 2.4712
+Step 44: Loss: 0.0485, Entropy: 0.0002, Distance: 2.4145
+Step 45: Loss: 0.0474, Entropy: 0.0003, Distance: 2.3583
+Step 46: Loss: 0.0463, Entropy: 0.0003, Distance: 2.3030
+Step 47: Loss: 0.0453, Entropy: 0.0003, Distance: 2.2485
+Step 48: Loss: 0.0442, Entropy: 0.0004, Distance: 2.1947
+Step 49: Loss: 0.0432, Entropy: 0.0004, Distance: 2.1417
+Step 00: Loss: 1.0892, Entropy: 1.0892, Distance: 0.0000
+Step 01: Loss: 0.2804, Entropy: 0.2484, Distance: 1.6000
+Step 02: Loss: 0.0845, Entropy: 0.0260, Distance: 2.9245
+Step 03: Loss: 0.0821, Entropy: 0.0037, Distance: 3.9194
+Step 04: Loss: 0.0937, Entropy: 0.0008, Distance: 4.6458
+Step 05: Loss: 0.1037, Entropy: 0.0002, Distance: 5.1762
+Step 06: Loss: 0.1112, Entropy: 0.0001, Distance: 5.5584
+Step 07: Loss: 0.1165, Entropy: 0.0000, Distance: 5.8249
+Step 08: Loss: 0.1200, Entropy: 0.0000, Distance: 5.9988
+Step 09: Loss: 0.1220, Entropy: 0.0000, Distance: 6.0974
+Step 10: Loss: 0.1227, Entropy: 0.0000, Distance: 6.1344
+Step 11: Loss: 0.1224, Entropy: 0.0000, Distance: 6.1209
+Step 12: Loss: 0.1213, Entropy: 0.0000, Distance: 6.0660
+Step 13: Loss: 0.1196, Entropy: 0.0000, Distance: 5.9775
+Step 14: Loss: 0.1172, Entropy: 0.0000, Distance: 5.8621
+Step 15: Loss: 0.1145, Entropy: 0.0000, Distance: 5.7254
+Step 16: Loss: 0.1114, Entropy: 0.0000, Distance: 5.5724
+Step 17: Loss: 0.1081, Entropy: 0.0000, Distance: 5.4071
+Step 18: Loss: 0.1047, Entropy: 0.0000, Distance: 5.2333
+Step 19: Loss: 0.1011, Entropy: 0.0000, Distance: 5.0540
+Step 20: Loss: 0.0974, Entropy: 0.0000, Distance: 4.8722
+Step 21: Loss: 0.0938, Entropy: 0.0000, Distance: 4.6903
+Step 22: Loss: 0.0902, Entropy: 0.0000, Distance: 4.5107
+Step 23: Loss: 0.0867, Entropy: 0.0000, Distance: 4.3356
+Step 24: Loss: 0.0833, Entropy: 0.0000, Distance: 4.1671
+Step 25: Loss: 0.0801, Entropy: 0.0000, Distance: 4.0070
+Step 26: Loss: 0.0771, Entropy: 0.0000, Distance: 3.8568
+Step 27: Loss: 0.0744, Entropy: 0.0000, Distance: 3.7174
+Step 28: Loss: 0.0718, Entropy: 0.0000, Distance: 3.5895
+Step 29: Loss: 0.0695, Entropy: 0.0000, Distance: 3.4729
+Step 30: Loss: 0.0674, Entropy: 0.0000, Distance: 3.3673
+Step 31: Loss: 0.0655, Entropy: 0.0000, Distance: 3.2722
+Step 32: Loss: 0.0637, Entropy: 0.0000, Distance: 3.1870
+Step 33: Loss: 0.0622, Entropy: 0.0000, Distance: 3.1106
+Step 34: Loss: 0.0609, Entropy: 0.0000, Distance: 3.0423
+Step 35: Loss: 0.0596, Entropy: 0.0000, Distance: 2.9810
+Step 36: Loss: 0.0585, Entropy: 0.0000, Distance: 2.9258
+Step 37: Loss: 0.0575, Entropy: 0.0000, Distance: 2.8756
+Step 38: Loss: 0.0566, Entropy: 0.0000, Distance: 2.8296
+Step 39: Loss: 0.0558, Entropy: 0.0000, Distance: 2.7871
+Step 40: Loss: 0.0550, Entropy: 0.0000, Distance: 2.7472
+Step 41: Loss: 0.0542, Entropy: 0.0000, Distance: 2.7091
+Step 42: Loss: 0.0535, Entropy: 0.0000, Distance: 2.6723
+Step 43: Loss: 0.0528, Entropy: 0.0000, Distance: 2.6361
+Step 44: Loss: 0.0520, Entropy: 0.0000, Distance: 2.6000
+Step 45: Loss: 0.0513, Entropy: 0.0000, Distance: 2.5633
+Step 46: Loss: 0.0506, Entropy: 0.0000, Distance: 2.5259
+Step 47: Loss: 0.0498, Entropy: 0.0001, Distance: 2.4876
+Step 48: Loss: 0.0490, Entropy: 0.0001, Distance: 2.4484
+Step 49: Loss: 0.0482, Entropy: 0.0001, Distance: 2.4086
+Step 00: Loss: 1.0840, Entropy: 1.0840, Distance: 0.0000
+Step 01: Loss: 0.1435, Entropy: 0.1115, Distance: 1.6000
+Step 02: Loss: 0.0668, Entropy: 0.0123, Distance: 2.7259
+Step 03: Loss: 0.0727, Entropy: 0.0022, Distance: 3.5270
+Step 04: Loss: 0.0829, Entropy: 0.0006, Distance: 4.1168
+Step 05: Loss: 0.0913, Entropy: 0.0002, Distance: 4.5572
+Step 06: Loss: 0.0978, Entropy: 0.0001, Distance: 4.8848
+Step 07: Loss: 0.1025, Entropy: 0.0000, Distance: 5.1242
+Step 08: Loss: 0.1059, Entropy: 0.0000, Distance: 5.2931
+Step 09: Loss: 0.1081, Entropy: 0.0000, Distance: 5.4048
+Step 10: Loss: 0.1094, Entropy: 0.0000, Distance: 5.4695
+Step 11: Loss: 0.1099, Entropy: 0.0000, Distance: 5.4953
+Step 12: Loss: 0.1098, Entropy: 0.0000, Distance: 5.4885
+Step 13: Loss: 0.1091, Entropy: 0.0000, Distance: 5.4542
+Step 14: Loss: 0.1079, Entropy: 0.0000, Distance: 5.3969
+Step 15: Loss: 0.1064, Entropy: 0.0000, Distance: 5.3201
+Step 16: Loss: 0.1045, Entropy: 0.0000, Distance: 5.2274
+Step 17: Loss: 0.1024, Entropy: 0.0000, Distance: 5.1216
+Step 18: Loss: 0.1001, Entropy: 0.0000, Distance: 5.0056
+Step 19: Loss: 0.0976, Entropy: 0.0000, Distance: 4.8817
+Step 20: Loss: 0.0950, Entropy: 0.0000, Distance: 4.7523
+Step 21: Loss: 0.0924, Entropy: 0.0000, Distance: 4.6196
+Step 22: Loss: 0.0897, Entropy: 0.0000, Distance: 4.4859
+Step 23: Loss: 0.0871, Entropy: 0.0000, Distance: 4.3532
+Step 24: Loss: 0.0845, Entropy: 0.0000, Distance: 4.2233
+Step 25: Loss: 0.0820, Entropy: 0.0000, Distance: 4.0977
+Step 26: Loss: 0.0795, Entropy: 0.0000, Distance: 3.9774
+Step 27: Loss: 0.0773, Entropy: 0.0000, Distance: 3.8632
+Step 28: Loss: 0.0751, Entropy: 0.0000, Distance: 3.7554
+Step 29: Loss: 0.0731, Entropy: 0.0000, Distance: 3.6541
+Step 30: Loss: 0.0712, Entropy: 0.0000, Distance: 3.5595
+Step 31: Loss: 0.0694, Entropy: 0.0000, Distance: 3.4714
+Step 32: Loss: 0.0678, Entropy: 0.0000, Distance: 3.3895
+Step 33: Loss: 0.0663, Entropy: 0.0000, Distance: 3.3136
+Step 34: Loss: 0.0649, Entropy: 0.0000, Distance: 3.2431
+Step 35: Loss: 0.0636, Entropy: 0.0000, Distance: 3.1778
+Step 36: Loss: 0.0623, Entropy: 0.0000, Distance: 3.1172
+Step 37: Loss: 0.0612, Entropy: 0.0000, Distance: 3.0609
+Step 38: Loss: 0.0602, Entropy: 0.0000, Distance: 3.0084
+Step 39: Loss: 0.0592, Entropy: 0.0000, Distance: 2.9595
+Step 40: Loss: 0.0583, Entropy: 0.0000, Distance: 2.9136
+Step 41: Loss: 0.0574, Entropy: 0.0000, Distance: 2.8704
+Step 42: Loss: 0.0566, Entropy: 0.0000, Distance: 2.8296
+Step 43: Loss: 0.0558, Entropy: 0.0000, Distance: 2.7908
+Step 44: Loss: 0.0551, Entropy: 0.0000, Distance: 2.7539
+Step 45: Loss: 0.0544, Entropy: 0.0000, Distance: 2.7185
+Step 46: Loss: 0.0537, Entropy: 0.0000, Distance: 2.6842
+Step 47: Loss: 0.0530, Entropy: 0.0000, Distance: 2.6506
+Step 48: Loss: 0.0524, Entropy: 0.0000, Distance: 2.6172
+Step 49: Loss: 0.0517, Entropy: 0.0000, Distance: 2.5839
+Step 00: Loss: 1.0466, Entropy: 1.0466, Distance: 0.0000
+Step 01: Loss: 0.2155, Entropy: 0.1835, Distance: 1.6000
+Step 02: Loss: 0.0795, Entropy: 0.0212, Distance: 2.9112
+Step 03: Loss: 0.0811, Entropy: 0.0044, Distance: 3.8366
+Step 04: Loss: 0.0915, Entropy: 0.0014, Distance: 4.5047
+Step 05: Loss: 0.1005, Entropy: 0.0006, Distance: 4.9938
+Step 06: Loss: 0.1073, Entropy: 0.0003, Distance: 5.3510
+Step 07: Loss: 0.1123, Entropy: 0.0002, Distance: 5.6067
+Step 08: Loss: 0.1158, Entropy: 0.0001, Distance: 5.7820
+Step 09: Loss: 0.1179, Entropy: 0.0001, Distance: 5.8926
+Step 10: Loss: 0.1191, Entropy: 0.0001, Distance: 5.9499
+Step 11: Loss: 0.1193, Entropy: 0.0001, Distance: 5.9634
+Step 12: Loss: 0.1188, Entropy: 0.0000, Distance: 5.9402
+Step 13: Loss: 0.1178, Entropy: 0.0000, Distance: 5.8867
+Step 14: Loss: 0.1162, Entropy: 0.0000, Distance: 5.8080
+Step 15: Loss: 0.1142, Entropy: 0.0000, Distance: 5.7086
+Step 16: Loss: 0.1119, Entropy: 0.0000, Distance: 5.5925
+Step 17: Loss: 0.1093, Entropy: 0.0000, Distance: 5.4633
+Step 18: Loss: 0.1065, Entropy: 0.0000, Distance: 5.3242
+Step 19: Loss: 0.1036, Entropy: 0.0000, Distance: 5.1780
+Step 20: Loss: 0.1006, Entropy: 0.0000, Distance: 5.0272
+Step 21: Loss: 0.0975, Entropy: 0.0000, Distance: 4.8737
+Step 22: Loss: 0.0944, Entropy: 0.0000, Distance: 4.7194
+Step 23: Loss: 0.0914, Entropy: 0.0001, Distance: 4.5658
+Step 24: Loss: 0.0883, Entropy: 0.0001, Distance: 4.4143
+Step 25: Loss: 0.0854, Entropy: 0.0001, Distance: 4.2665
+Step 26: Loss: 0.0826, Entropy: 0.0001, Distance: 4.1238
+Step 27: Loss: 0.0798, Entropy: 0.0001, Distance: 3.9876
+Step 28: Loss: 0.0773, Entropy: 0.0001, Distance: 3.8588
+Step 29: Loss: 0.0749, Entropy: 0.0001, Distance: 3.7378
+Step 30: Loss: 0.0726, Entropy: 0.0001, Distance: 3.6247
+Step 31: Loss: 0.0705, Entropy: 0.0001, Distance: 3.5193
+Step 32: Loss: 0.0686, Entropy: 0.0002, Distance: 3.4213
+Step 33: Loss: 0.0668, Entropy: 0.0002, Distance: 3.3304
+Step 34: Loss: 0.0651, Entropy: 0.0002, Distance: 3.2463
+Step 35: Loss: 0.0636, Entropy: 0.0002, Distance: 3.1686
+Step 36: Loss: 0.0622, Entropy: 0.0003, Distance: 3.0967
+Step 37: Loss: 0.0609, Entropy: 0.0003, Distance: 3.0299
+Step 38: Loss: 0.0597, Entropy: 0.0003, Distance: 2.9675
+Step 39: Loss: 0.0586, Entropy: 0.0004, Distance: 2.9086
+Step 40: Loss: 0.0575, Entropy: 0.0004, Distance: 2.8527
+Step 41: Loss: 0.0564, Entropy: 0.0005, Distance: 2.7993
+Step 42: Loss: 0.0555, Entropy: 0.0005, Distance: 2.7481
+Step 43: Loss: 0.0545, Entropy: 0.0006, Distance: 2.6992
+Step 44: Loss: 0.0536, Entropy: 0.0006, Distance: 2.6526
+Step 45: Loss: 0.0528, Entropy: 0.0006, Distance: 2.6078
+Step 46: Loss: 0.0520, Entropy: 0.0007, Distance: 2.5646
+Step 47: Loss: 0.0512, Entropy: 0.0007, Distance: 2.5223
+Step 48: Loss: 0.0504, Entropy: 0.0008, Distance: 2.4807
+Step 49: Loss: 0.0496, Entropy: 0.0008, Distance: 2.4393
+Step 00: Loss: 1.0447, Entropy: 1.0447, Distance: 0.0000
+Step 01: Loss: 0.5905, Entropy: 0.5585, Distance: 1.6000
+Step 02: Loss: 0.1613, Entropy: 0.1100, Distance: 2.5658
+Step 03: Loss: 0.0851, Entropy: 0.0153, Distance: 3.4948
+Step 04: Loss: 0.0875, Entropy: 0.0027, Distance: 4.2428
+Step 05: Loss: 0.0970, Entropy: 0.0006, Distance: 4.8198
+Step 06: Loss: 0.1053, Entropy: 0.0002, Distance: 5.2561
+Step 07: Loss: 0.1116, Entropy: 0.0001, Distance: 5.5772
+Step 08: Loss: 0.1161, Entropy: 0.0000, Distance: 5.8027
+Step 09: Loss: 0.1190, Entropy: 0.0000, Distance: 5.9486
+Step 10: Loss: 0.1206, Entropy: 0.0000, Distance: 6.0279
+Step 11: Loss: 0.1210, Entropy: 0.0000, Distance: 6.0513
+Step 12: Loss: 0.1206, Entropy: 0.0000, Distance: 6.0279
+Step 13: Loss: 0.1193, Entropy: 0.0000, Distance: 5.9657
+Step 14: Loss: 0.1174, Entropy: 0.0000, Distance: 5.8712
+Step 15: Loss: 0.1150, Entropy: 0.0000, Distance: 5.7505
+Step 16: Loss: 0.1122, Entropy: 0.0000, Distance: 5.6086
+Step 17: Loss: 0.1090, Entropy: 0.0000, Distance: 5.4505
+Step 18: Loss: 0.1056, Entropy: 0.0000, Distance: 5.2807
+Step 19: Loss: 0.1021, Entropy: 0.0000, Distance: 5.1034
+Step 20: Loss: 0.0985, Entropy: 0.0000, Distance: 4.9231
+Step 21: Loss: 0.0949, Entropy: 0.0000, Distance: 4.7436
+Step 22: Loss: 0.0914, Entropy: 0.0000, Distance: 4.5689
+Step 23: Loss: 0.0880, Entropy: 0.0000, Distance: 4.4021
+Step 24: Loss: 0.0849, Entropy: 0.0000, Distance: 4.2460
+Step 25: Loss: 0.0821, Entropy: 0.0000, Distance: 4.1027
+Step 26: Loss: 0.0795, Entropy: 0.0000, Distance: 3.9733
+Step 27: Loss: 0.0772, Entropy: 0.0000, Distance: 3.8585
+Step 28: Loss: 0.0752, Entropy: 0.0000, Distance: 3.7580
+Step 29: Loss: 0.0734, Entropy: 0.0000, Distance: 3.6711
+Step 30: Loss: 0.0719, Entropy: 0.0000, Distance: 3.5963
+Step 31: Loss: 0.0706, Entropy: 0.0000, Distance: 3.5320
+Step 32: Loss: 0.0695, Entropy: 0.0000, Distance: 3.4765
+Step 33: Loss: 0.0686, Entropy: 0.0000, Distance: 3.4280
+Step 34: Loss: 0.0677, Entropy: 0.0000, Distance: 3.3852
+Step 35: Loss: 0.0669, Entropy: 0.0000, Distance: 3.3469
+Step 36: Loss: 0.0662, Entropy: 0.0000, Distance: 3.3122
+Step 37: Loss: 0.0656, Entropy: 0.0000, Distance: 3.2801
+Step 38: Loss: 0.0650, Entropy: 0.0000, Distance: 3.2499
+Step 39: Loss: 0.0644, Entropy: 0.0000, Distance: 3.2209
+Step 40: Loss: 0.0639, Entropy: 0.0000, Distance: 3.1923
+Step 41: Loss: 0.0633, Entropy: 0.0000, Distance: 3.1636
+Step 42: Loss: 0.0627, Entropy: 0.0000, Distance: 3.1340
+Step 43: Loss: 0.0621, Entropy: 0.0000, Distance: 3.1032
+Step 44: Loss: 0.0614, Entropy: 0.0000, Distance: 3.0706
+Step 45: Loss: 0.0607, Entropy: 0.0000, Distance: 3.0359
+Step 46: Loss: 0.0600, Entropy: 0.0000, Distance: 2.9992
+Step 47: Loss: 0.0592, Entropy: 0.0000, Distance: 2.9605
+Step 48: Loss: 0.0584, Entropy: 0.0000, Distance: 2.9200
+Step 49: Loss: 0.0576, Entropy: 0.0000, Distance: 2.8781
+Step 00: Loss: 1.0435, Entropy: 1.0435, Distance: 0.0000
+Step 01: Loss: 0.5918, Entropy: 0.5598, Distance: 1.6000
+Step 02: Loss: 0.1469, Entropy: 0.0963, Distance: 2.5303
+Step 03: Loss: 0.0804, Entropy: 0.0116, Distance: 3.4381
+Step 04: Loss: 0.0854, Entropy: 0.0018, Distance: 4.1763
+Step 05: Loss: 0.0955, Entropy: 0.0004, Distance: 4.7545
+Step 06: Loss: 0.1041, Entropy: 0.0001, Distance: 5.2016
+Step 07: Loss: 0.1109, Entropy: 0.0000, Distance: 5.5413
+Step 08: Loss: 0.1159, Entropy: 0.0000, Distance: 5.7921
+Step 09: Loss: 0.1194, Entropy: 0.0000, Distance: 5.9682
+Step 10: Loss: 0.1216, Entropy: 0.0000, Distance: 6.0809
+Step 11: Loss: 0.1228, Entropy: 0.0000, Distance: 6.1399
+Step 12: Loss: 0.1231, Entropy: 0.0000, Distance: 6.1533
+Step 13: Loss: 0.1226, Entropy: 0.0000, Distance: 6.1280
+Step 14: Loss: 0.1214, Entropy: 0.0000, Distance: 6.0703
+Step 15: Loss: 0.1197, Entropy: 0.0000, Distance: 5.9855
+Step 16: Loss: 0.1176, Entropy: 0.0000, Distance: 5.8785
+Step 17: Loss: 0.1151, Entropy: 0.0000, Distance: 5.7534
+Step 18: Loss: 0.1123, Entropy: 0.0000, Distance: 5.6141
+Step 19: Loss: 0.1093, Entropy: 0.0000, Distance: 5.4638
+Step 20: Loss: 0.1061, Entropy: 0.0000, Distance: 5.3056
+Step 21: Loss: 0.1028, Entropy: 0.0000, Distance: 5.1423
+Step 22: Loss: 0.0995, Entropy: 0.0000, Distance: 4.9766
+Step 23: Loss: 0.0962, Entropy: 0.0000, Distance: 4.8109
+Step 24: Loss: 0.0930, Entropy: 0.0000, Distance: 4.6478
+Step 25: Loss: 0.0898, Entropy: 0.0000, Distance: 4.4893
+Step 26: Loss: 0.0867, Entropy: 0.0000, Distance: 4.3374
+Step 27: Loss: 0.0839, Entropy: 0.0000, Distance: 4.1939
+Step 28: Loss: 0.0812, Entropy: 0.0000, Distance: 4.0599
+Step 29: Loss: 0.0787, Entropy: 0.0000, Distance: 3.9363
+Step 30: Loss: 0.0765, Entropy: 0.0000, Distance: 3.8235
+Step 31: Loss: 0.0744, Entropy: 0.0000, Distance: 3.7216
+Step 32: Loss: 0.0726, Entropy: 0.0000, Distance: 3.6301
+Step 33: Loss: 0.0710, Entropy: 0.0000, Distance: 3.5483
+Step 34: Loss: 0.0695, Entropy: 0.0000, Distance: 3.4752
+Step 35: Loss: 0.0682, Entropy: 0.0000, Distance: 3.4097
+Step 36: Loss: 0.0670, Entropy: 0.0000, Distance: 3.3504
+Step 37: Loss: 0.0659, Entropy: 0.0000, Distance: 3.2964
+Step 38: Loss: 0.0649, Entropy: 0.0000, Distance: 3.2465
+Step 39: Loss: 0.0640, Entropy: 0.0000, Distance: 3.2001
+Step 40: Loss: 0.0631, Entropy: 0.0000, Distance: 3.1564
+Step 41: Loss: 0.0623, Entropy: 0.0000, Distance: 3.1149
+Step 42: Loss: 0.0615, Entropy: 0.0000, Distance: 3.0748
+Step 43: Loss: 0.0607, Entropy: 0.0000, Distance: 3.0356
+Step 44: Loss: 0.0599, Entropy: 0.0000, Distance: 2.9968
+Step 45: Loss: 0.0592, Entropy: 0.0000, Distance: 2.9578
+Step 46: Loss: 0.0584, Entropy: 0.0000, Distance: 2.9185
+Step 47: Loss: 0.0576, Entropy: 0.0000, Distance: 2.8785
+Step 48: Loss: 0.0568, Entropy: 0.0000, Distance: 2.8378
+Step 49: Loss: 0.0560, Entropy: 0.0000, Distance: 2.7963
+Step 00: Loss: 1.0434, Entropy: 1.0434, Distance: 0.0000
+Step 01: Loss: 0.1504, Entropy: 0.1184, Distance: 1.6000
+Step 02: Loss: 0.0685, Entropy: 0.0132, Distance: 2.7644
+Step 03: Loss: 0.0745, Entropy: 0.0030, Distance: 3.5752
+Step 04: Loss: 0.0842, Entropy: 0.0011, Distance: 4.1571
+Step 05: Loss: 0.0921, Entropy: 0.0005, Distance: 4.5786
+Step 06: Loss: 0.0979, Entropy: 0.0003, Distance: 4.8808
+Step 07: Loss: 0.1020, Entropy: 0.0002, Distance: 5.0904
+Step 08: Loss: 0.1047, Entropy: 0.0001, Distance: 5.2260
+Step 09: Loss: 0.1061, Entropy: 0.0001, Distance: 5.3015
+Step 10: Loss: 0.1066, Entropy: 0.0001, Distance: 5.3279
+Step 11: Loss: 0.1063, Entropy: 0.0001, Distance: 5.3141
+Step 12: Loss: 0.1054, Entropy: 0.0001, Distance: 5.2676
+Step 13: Loss: 0.1039, Entropy: 0.0001, Distance: 5.1947
+Step 14: Loss: 0.1021, Entropy: 0.0000, Distance: 5.1005
+Step 15: Loss: 0.0998, Entropy: 0.0000, Distance: 4.9898
+Step 16: Loss: 0.0974, Entropy: 0.0000, Distance: 4.8667
+Step 17: Loss: 0.0947, Entropy: 0.0000, Distance: 4.7348
+Step 18: Loss: 0.0920, Entropy: 0.0000, Distance: 4.5977
+Step 19: Loss: 0.0892, Entropy: 0.0000, Distance: 4.4582
+Step 20: Loss: 0.0864, Entropy: 0.0000, Distance: 4.3188
+Step 21: Loss: 0.0837, Entropy: 0.0000, Distance: 4.1816
+Step 22: Loss: 0.0810, Entropy: 0.0000, Distance: 4.0483
+Step 23: Loss: 0.0785, Entropy: 0.0000, Distance: 3.9205
+Step 24: Loss: 0.0760, Entropy: 0.0000, Distance: 3.7995
+Step 25: Loss: 0.0738, Entropy: 0.0000, Distance: 3.6864
+Step 26: Loss: 0.0717, Entropy: 0.0001, Distance: 3.5819
+Step 27: Loss: 0.0698, Entropy: 0.0001, Distance: 3.4861
+Step 28: Loss: 0.0680, Entropy: 0.0001, Distance: 3.3988
+Step 29: Loss: 0.0664, Entropy: 0.0001, Distance: 3.3194
+Step 30: Loss: 0.0650, Entropy: 0.0001, Distance: 3.2471
+Step 31: Loss: 0.0637, Entropy: 0.0001, Distance: 3.1813
+Step 32: Loss: 0.0625, Entropy: 0.0001, Distance: 3.1217
+Step 33: Loss: 0.0614, Entropy: 0.0001, Distance: 3.0677
+Step 34: Loss: 0.0605, Entropy: 0.0001, Distance: 3.0189
+Step 35: Loss: 0.0596, Entropy: 0.0001, Distance: 2.9746
+Step 36: Loss: 0.0588, Entropy: 0.0001, Distance: 2.9341
+Step 37: Loss: 0.0580, Entropy: 0.0001, Distance: 2.8967
+Step 38: Loss: 0.0573, Entropy: 0.0001, Distance: 2.8615
+Step 39: Loss: 0.0567, Entropy: 0.0001, Distance: 2.8276
+Step 40: Loss: 0.0560, Entropy: 0.0001, Distance: 2.7943
+Step 41: Loss: 0.0553, Entropy: 0.0001, Distance: 2.7610
+Step 42: Loss: 0.0547, Entropy: 0.0001, Distance: 2.7271
+Step 43: Loss: 0.0540, Entropy: 0.0001, Distance: 2.6925
+Step 44: Loss: 0.0533, Entropy: 0.0001, Distance: 2.6569
+Step 45: Loss: 0.0525, Entropy: 0.0001, Distance: 2.6204
+Step 46: Loss: 0.0518, Entropy: 0.0001, Distance: 2.5830
+Step 47: Loss: 0.0510, Entropy: 0.0001, Distance: 2.5451
+Step 48: Loss: 0.0503, Entropy: 0.0001, Distance: 2.5068
+Step 49: Loss: 0.0495, Entropy: 0.0001, Distance: 2.4683
+Step 00: Loss: 1.0084, Entropy: 1.0084, Distance: 0.0000
+Step 01: Loss: 0.2535, Entropy: 0.2215, Distance: 1.6000
+Step 02: Loss: 0.0758, Entropy: 0.0207, Distance: 2.7555
+Step 03: Loss: 0.0754, Entropy: 0.0027, Distance: 3.6313
+Step 04: Loss: 0.0860, Entropy: 0.0005, Distance: 4.2724
+Step 05: Loss: 0.0949, Entropy: 0.0001, Distance: 4.7392
+Step 06: Loss: 0.1015, Entropy: 0.0001, Distance: 5.0732
+Step 07: Loss: 0.1061, Entropy: 0.0000, Distance: 5.3026
+Step 08: Loss: 0.1090, Entropy: 0.0000, Distance: 5.4479
+Step 09: Loss: 0.1105, Entropy: 0.0000, Distance: 5.5245
+Step 10: Loss: 0.1109, Entropy: 0.0000, Distance: 5.5445
+Step 11: Loss: 0.1104, Entropy: 0.0000, Distance: 5.5177
+Step 12: Loss: 0.1090, Entropy: 0.0000, Distance: 5.4524
+Step 13: Loss: 0.1071, Entropy: 0.0000, Distance: 5.3559
+Step 14: Loss: 0.1047, Entropy: 0.0000, Distance: 5.2348
+Step 15: Loss: 0.1019, Entropy: 0.0000, Distance: 5.0949
+Step 16: Loss: 0.0988, Entropy: 0.0000, Distance: 4.9419
+Step 17: Loss: 0.0956, Entropy: 0.0000, Distance: 4.7806
+Step 18: Loss: 0.0923, Entropy: 0.0000, Distance: 4.6158
+Step 19: Loss: 0.0890, Entropy: 0.0000, Distance: 4.4517
+Step 20: Loss: 0.0858, Entropy: 0.0000, Distance: 4.2916
+Step 21: Loss: 0.0828, Entropy: 0.0000, Distance: 4.1385
+Step 22: Loss: 0.0799, Entropy: 0.0000, Distance: 3.9946
+Step 23: Loss: 0.0772, Entropy: 0.0000, Distance: 3.8614
+Step 24: Loss: 0.0748, Entropy: 0.0000, Distance: 3.7397
+Step 25: Loss: 0.0726, Entropy: 0.0000, Distance: 3.6299
+Step 26: Loss: 0.0706, Entropy: 0.0000, Distance: 3.5320
+Step 27: Loss: 0.0689, Entropy: 0.0000, Distance: 3.4456
+Step 28: Loss: 0.0674, Entropy: 0.0000, Distance: 3.3700
+Step 29: Loss: 0.0661, Entropy: 0.0000, Distance: 3.3043
+Step 30: Loss: 0.0650, Entropy: 0.0000, Distance: 3.2476
+Step 31: Loss: 0.0640, Entropy: 0.0000, Distance: 3.1985
+Step 32: Loss: 0.0631, Entropy: 0.0000, Distance: 3.1560
+Step 33: Loss: 0.0624, Entropy: 0.0000, Distance: 3.1187
+Step 34: Loss: 0.0617, Entropy: 0.0000, Distance: 3.0854
+Step 35: Loss: 0.0611, Entropy: 0.0000, Distance: 3.0548
+Step 36: Loss: 0.0605, Entropy: 0.0000, Distance: 3.0258
+Step 37: Loss: 0.0599, Entropy: 0.0000, Distance: 2.9972
+Step 38: Loss: 0.0594, Entropy: 0.0000, Distance: 2.9680
+Step 39: Loss: 0.0588, Entropy: 0.0000, Distance: 2.9374
+Step 40: Loss: 0.0581, Entropy: 0.0000, Distance: 2.9050
+Step 41: Loss: 0.0574, Entropy: 0.0000, Distance: 2.8705
+Step 42: Loss: 0.0567, Entropy: 0.0000, Distance: 2.8340
+Step 43: Loss: 0.0559, Entropy: 0.0000, Distance: 2.7958
+Step 44: Loss: 0.0551, Entropy: 0.0000, Distance: 2.7563
+Step 45: Loss: 0.0543, Entropy: 0.0000, Distance: 2.7158
+Step 46: Loss: 0.0535, Entropy: 0.0000, Distance: 2.6748
+Step 47: Loss: 0.0527, Entropy: 0.0000, Distance: 2.6334
+Step 48: Loss: 0.0519, Entropy: 0.0000, Distance: 2.5919
+Step 49: Loss: 0.0510, Entropy: 0.0000, Distance: 2.5505
+    \end{Verbatim}
+
+    \begin{center}
+    \adjustimage{max size={0.9\linewidth}{0.9\paperheight}}{../clue-results/new-clue-test2_files/../clue-results/new-clue-test2_39_1.png}
+    \end{center}
+    { \hspace*{\fill} \\}
+    
+    \begin{Verbatim}[commandchars=\\\{\}]
+
+Class probabilities for last example:
+Original (Class 0): [0.563 0.    0.    0.007 0.    0.079 0.017 0.    0.331
+0.002]
+Explained (Class 0): [1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+    \end{Verbatim}
+
+
+    % Add a bibliography block to the postdoc
+    
+    
+    
+\end{document}

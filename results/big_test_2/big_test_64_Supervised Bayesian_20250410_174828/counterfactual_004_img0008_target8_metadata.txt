@@ -1,0 +1,33 @@
+Image Index: 8
+Target Class: 8
+
+Classification:
+Original Class (reconstruction): 9
+Original Class (latent): 9
+Counterfactual Class (reconstruction): 8
+Counterfactual Class (latent): 8
+
+Confidence:
+Target Class Confidence (reconstruction): 0.922699
+Target Class Confidence (latent): 0.959378
+
+Metrics:
+Latent Distance: 60.227997
+Original Log Likelihood: -74.453094
+Reconstruction Log Likelihood: -73.960228
+Counterfactual Log Likelihood: -121.630577
+Log Likelihood Difference (original vs counterfactual): 47.177483
+Log Likelihood Difference (reconstruction vs counterfactual): 47.670349
+IM1 Score: 0.6236202096135007
+
+Class Probability Distributions:
+Original (reconstruction): N/A
+
+Counterfactual (reconstruction): N/A
+
+Original (latent):
+  Class 9: 0.999997
+
+Counterfactual (latent):
+  Class 8: 0.959378
+  Class 9: 0.032116
