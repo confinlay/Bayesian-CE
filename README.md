@@ -1,4 +1,7 @@
 # Counterfactual Explanations from Internal Representations
+Longer blog post can be found here: [blog](https://conorfinlay.me/projects/dissertation/)
+
+
 <div style="text-align: center;">
   <img width="861" height="503" alt="Screenshot 2025-08-19 at 10 37 44" src="https://github.com/user-attachments/assets/c29ea3e2-9f5a-4556-98af-6d422a86f30d" />
 </div>
